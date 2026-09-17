@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="author" content="Developed by Gulam Khan">
+  <meta name="generator" content="SubZero - Developed by Gulam Khan">
+  <title>{{ domain }} — Subdomain Reconnaissance Report (Developed by Gulam Khan)</title>
+  <style>
+    :root {
+      --bg: #030712;
+      --card-bg: rgba(15, 23, 42, 0.85);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(0, 242, 254, 0.35);
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent-cyan: #00f2fe;
+      --accent-blue: #4facfe;
+      --accent-emerald: #10b981;
+      --accent-purple: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(0, 242, 254, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+      color: var(--text);
+      font-family: var(--font-ui);
+      padding: 30px 20px;
+      line-height: 1.5;
+    }
+
+    .report-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .report-header {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .report-header::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple), var(--accent-emerald));
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .title-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.1);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      padding: 4px 12px;
+      border-radius: 99px;
+      margin-bottom: 10px;
+    }
+
+    .report-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+    }
+
+    .report-target {
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+    }
+
+    .author-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.45);
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-size: 12.5px;
+      color: #d8b4fe;
+      font-weight: 500;
+      box-shadow: 0 0 16px rgba(139, 92, 246, 0.25);
+    }
+    .author-badge strong {
+      color: #ffffff;
+      font-weight: 800;
+    }
+
+    .header-meta-row {
+      display: flex;
+      gap: 24px;
+      font-size: 13px;
+      color: var(--muted);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 16px;
+      flex-wrap: wrap;
+    }
+    .meta-item strong { color: #ffffff; font-weight: 600; }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+      backdrop-filter: blur(12px);
+      transition: all 0.2s ease;
+    }
+    .metric-card:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-2px);
+    }
+
+    .metric-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .metric-val {
+      font-size: 30px;
+      font-weight: 800;
+      color: #ffffff;
+      font-family: var(--font-mono);
+      line-height: 1;
+    }
+    .val-cyan { color: var(--accent-cyan); }
+    .val-emerald { color: var(--accent-emerald); }
+    .val-purple { color: #c084fc; }
+    .val-amber { color: var(--accent-amber); }
+
+    /* Section Card */
+    .section-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 28px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+      margin-bottom: 24px;
+    }
+
+    .section-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .section-heading {
+      font-size: 18px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    /* Filter Input */
+    .search-box {
+      position: relative;
+      flex: 1;
+      max-width: 380px;
+      min-width: 240px;
+    }
+    .search-box input {
+      width: 100%;
+      background: rgba(3, 7, 18, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 9px 14px 9px 36px;
+      color: #ffffff;
+      font-family: var(--font-ui);
+      font-size: 13.5px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .search-box input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.25);
+    }
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* Results Table */
+    .table-container {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      text-align: left;
+    }
+
+    thead th {
+      background: rgba(13, 20, 36, 0.95);
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      transition: background 0.15s ease;
+    }
+    tbody tr:hover {
+      background: rgba(0, 242, 254, 0.03);
+    }
+
+    td {
+      padding: 11px 16px;
+      vertical-align: middle;
+    }
+
+    .td-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #64748b;
+      width: 60px;
+    }
+
+    .subdomain-text {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      margin-right: 4px;
+    }
+    .badge-resolved { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-unresolved { background: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25); }
+    .badge-src { background: rgba(255, 255, 255, 0.06); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.1); }
+    .badge-conf { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+    .print-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: var(--font-ui);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .print-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Footer */
+    .report-footer {
+      text-align: center;
+      padding: 24px 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+    .report-footer strong {
+      color: var(--accent-cyan);
+    }
+
+    @media print {
+      body { background: #ffffff !important; color: #000000 !important; padding: 0; }
+      .report-header, .metric-card, .section-card { border: 1px solid #ccc !important; background: #fff !important; box-shadow: none !important; }
+      .search-box, .print-btn { display: none !important; }
+      .report-title, .metric-val, td, strong { color: #000000 !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-wrap">
+    <!-- Header -->
+    <header class="report-header">
+      <div class="header-top">
+        <div>
+          <div class="title-pill">⚡ SUBZERO • EXECUTIVE INTELLIGENCE</div>
+          <h1 class="report-title">Reconnaissance Audit: <span class="report-target">{{ domain }}</span></h1>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div class="author-badge">
+            <span>🛡️</span>
+            <span>Developed by <strong>Gulam</strong></span>
+          </div>
+          <button type="button" class="print-btn" onclick="window.print()">🖨️ Print / Save PDF</button>
+        </div>
+      </div>
+      <div class="header-meta-row">
+        <div class="meta-item">Target Domain: <strong>{{ domain }}</strong></div>
+        <div class="meta-item">Generated: <strong>{{ scan_date }}</strong></div>
+        <div class="meta-item">Total Discovered: <strong>{{ total_count }} Unique Subdomains</strong></div>
+        <div class="meta-item">Active Recon: <strong>{{ "Enabled" if active_dns else "Passive Only" }}</strong></div>
+      </div>
+    </header>
+
+    <!-- Metrics Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Total Subdomains</div>
+        <div class="metric-val val-cyan">{{ total_count }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">DNS Validated (Resolved)</div>
+        <div class="metric-val val-emerald">{{ resolved_count }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Multi-Source Confirmed</div>
+        <div class="metric-val val-purple">{{ high_conf_count }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Engines Utilized</div>
+        <div class="metric-val val-amber">{{ sources_count }}</div>
+      </div>
+    </div>
+
+    <!-- Results Table -->
+    <section class="section-card">
+      <div class="section-top">
+        <h2 class="section-heading">Discovered Assets Inventory (<span id="visible-count">{{ total_count }}</span> of {{ total_count }})</h2>
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="report-filter" placeholder="Filter subdomains (e.g. api, admin, vpn)..." oninput="filterTable()">
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table id="results-table">
+          <thead>
+            <tr>
+              <th style="width: 50px;">#</th>
+              <th>Subdomain</th>
+              <th>Discovery Sources</th>
+              <th>DNS Status</th>
+              <th>Confidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in results %}
+            <tr class="result-row">
+              <td class="td-num">#{{ "%03d"|format(loop.index) }}</td>
+              <td><span class="subdomain-text">{{ item.subdomain }}</span></td>
+              <td>
+                {% for src in item.sources %}
+                <span class="badge badge-src">{{ src }}</span>
+                {% endfor %}
+              </td>
+              <td>
+                {% if item.dns == 'resolved' %}
+                <span class="badge badge-resolved" title="{{ item.dns_summary or 'Live via Public DNS' }}">Live ({{ item.dns_resolver or 'Resolved' }})</span>
+                {% if item.dns_ips and item.dns_ips|length > 0 %}
+                <span class="badge badge-src" style="font-family: monospace; font-size: 11px;">{{ item.dns_ips[0] }}</span>
+                {% endif %}
+                {% elif item.dns == 'unresolved' %}
+                <span class="badge badge-unresolved" title="Confirmed dead across Cloudflare, Google, OpenDNS, Quad9, AdGuard, Control D, Level3 & System">Dead (All Resolvers)</span>
+                {% else %}
+                <span class="badge badge-src">{{ item.dns }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if item.confidence == 'high' %}
+                <span class="badge badge-conf">high confidence</span>
+                {% else %}
+                <span class="badge badge-src">single-source</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="report-footer">
+      SubZero v2.2 • Designed & Developed by <strong>Gulam Khan</strong> • Pure High-Speed OSINT & Multi-Threaded DNS Reconnaissance
+    </footer>
+  </div>
+
+  <script>
+    function filterTable() {
+      const q = document.getElementById('report-filter').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('.result-row');
+      let visible = 0;
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        if (!q || text.includes(q)) {
+          row.style.display = '';
+          visible++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+      document.getElementById('visible-count').textContent = visible;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+name: 💡 Feature Request
+description: Suggest an idea, new OSINT source, or improvement for SubZero.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve SubZero! Please outline your feature request below.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      options:
+        - Passive OSINT Source Integration
+        - DNS Resolution & Performance
+        - Permutations / Mutation Engine
+        - Archive & Wayback URL Miner
+        - Web UI / UX Improvements
+        - CLI & Automation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Motivation
+      description: Is your feature request related to a problem or limitation? Please explain.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution / Implementation Idea
+      description: Describe what you would like to happen or how you envision this feature working.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or workarounds you've considered.

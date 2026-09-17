@@ -1,0 +1,2670 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="author" content="Gulam Khan">
+  <meta name="description" content="SubZero - Enterprise OSINT Reconnaissance, Multi-Domain Batch Scanner, History Diff & Live Prober Developed by Gulam Khan">
+  <title>SubZero – Developed by Gulam Khan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=20260909_ultra_clean">
+</head>
+<body>
+  <!-- Ambient Dynamic Polymorphic Liquid Background & Mesh -->
+  <div class="ambient-glow-mesh" aria-hidden="true">
+    <div class="cyber-grid-overlay"></div>
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="glow-orb orb-3"></div>
+    <div class="glow-orb orb-4"></div>
+  </div>
+
+  <main class="wrap">
+    <!-- Top Platform Navigation: Clean, Uncluttered, Enterprise Dashboard Feel -->
+    <header class="platform-header">
+      <div class="platform-nav-wrapper">
+        <nav class="platform-nav" aria-label="Engine Views">
+          <button type="button" class="nav-tab active" id="tab-btn-single" onclick="switchPlatformTab('single')">
+            <span class="nav-icon">🎯</span>
+            <span class="nav-title">Single Recon</span>
+          </button>
+          <button type="button" class="nav-tab" id="tab-btn-batch" onclick="switchPlatformTab('batch')">
+            <span class="nav-icon">🗂️</span>
+            <span class="nav-title">Batch Scanner</span>
+          </button>
+          <button type="button" class="nav-tab" id="tab-btn-history" onclick="switchPlatformTab('history')">
+            <span class="nav-icon">🔄</span>
+            <span class="nav-title">History & Diff</span>
+          </button>
+          <button type="button" class="nav-tab nav-tab-prober" id="tab-btn-prober" onclick="switchPlatformTab('prober')">
+            <span class="nav-icon">🌐</span>
+            <span class="nav-title">Live HTTP Prober</span>
+            <span class="nav-badge-pill">Separate</span>
+          </button>
+          <button type="button" class="nav-tab" id="tab-btn-permutations" onclick="switchPlatformTab('permutations')">
+            <span class="nav-icon">🧬</span>
+            <span class="nav-title">Permutations</span>
+          </button>
+          <button type="button" class="nav-tab" id="tab-btn-archive" onclick="switchPlatformTab('archive')">
+            <span class="nav-icon">📜</span>
+            <span class="nav-title">Archive Miner</span>
+          </button>
+          <button type="button" class="nav-tab" id="tab-btn-auditor" onclick="switchPlatformTab('auditor')">
+            <span class="nav-icon">🛡️</span>
+            <span class="nav-title">CNAME Auditor</span>
+          </button>
+          <a href="/api/download/zip" class="nav-tab nav-tab-download" download="subzero_by_gulam_khan.zip" title="Download Complete Project ZIP (Portable & Ready-to-Run)" style="text-decoration: none; margin-left: auto;">
+            <span class="nav-icon">📦</span>
+            <span class="nav-title">Download ZIP</span>
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- ==================================================================== -->
+    <!-- VIEW 1: SINGLE DOMAIN RECONNAISSANCE                                 -->
+    <!-- ==================================================================== -->
+    <div id="view-single" class="platform-view active">
+      <!-- Hero & Scan Setup Card -->
+      <section class="card hero" id="hero-card">
+        <div class="brand-row">
+          <div>
+            <div class="eyebrow-badge">
+              <span class="pulse-dot"></span>
+              <span>NEXT-GEN RECON ENGINE</span>
+            </div>
+            <h1>SubZero</h1>
+          </div>
+          <div class="brand-right">
+            <div class="developer-pill">
+              <span class="dev-badge-dot"></span>
+              <span class="dev-text">Developed by <strong class="dev-author">Gulam Khan</strong></span>
+            </div>
+            <div class="hud-status-badge">
+              <span class="hud-icon">⚡</span>
+              <span class="hud-text">OPTIMIZED v2.2</span>
+            </div>
+          </div>
+        </div>
+        <p class="muted">High-yield passive reconnaissance & multi-threaded DNS brute-forcing. Fast, resilient & zero disk clutter.</p>
+
+        <form id="scan-form" class="row" onsubmit="event.preventDefault(); startScan();">
+          <div class="input-wrapper">
+            <span class="input-icon">🎯</span>
+            <input id="domain" type="text" placeholder="Enter target domain, e.g. example.com" autocomplete="off" spellcheck="false" required>
+          </div>
+          <button id="scan-btn" type="submit">
+            <span class="btn-text">Discover Subdomains</span>
+            <span class="btn-arrow">→</span>
+          </button>
+          <button id="cancel-btn" type="button" class="btn-cancel hidden" onclick="cancelScan()">
+            <span>✕ Cancel</span>
+          </button>
+        </form>
+
+        <!-- Clean Quick Toolbar (Clean Minimalist Interface) -->
+        <div class="quick-toolbar">
+          <button type="button" class="drawer-toggle-btn" id="btn-toggle-engines" onclick="toggleEngineDrawer()">
+            <span>⚙️ Configure Engines & Resolvers</span>
+            <span id="engine-drawer-arrow">▼</span>
+          </button>
+          <button type="button" class="drawer-toggle-btn" id="btn-toggle-terminal" onclick="toggleTerminalBox()">
+            <span>💻 Live Telemetry Terminal</span>
+          </button>
+          <div class="quick-resolver-pill">
+            <span class="quick-dot"></span>
+            <span>Multi-Resolver:</span>
+            <strong id="quick-resolver-label">Auto-Failover (All)</strong>
+          </div>
+        </div>
+
+        <!-- Collapsible Engine Drawer (Hidden by default for maximum front-page cleanliness) -->
+        <div id="engine-drawer" class="engine-drawer hidden">
+          <div class="engine-section-label">CONFIGURE RECONNAISSANCE ENGINES</div>
+          <div class="toggle-row">
+            <label class="engine-chip">
+              <input id="source-subfinder" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">Subfinder Fast</span>
+            </label>
+            <label class="engine-chip chip-deep">
+              <input id="source-subfinder_all" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">Subfinder Deep (52 Sources)</span>
+            </label>
+            <label class="engine-chip chip-ct">
+              <input id="source-crtsh" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">crt.sh (CT Logs)</span>
+            </label>
+            <label class="engine-chip">
+              <input id="source-rapiddns" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">RapidDNS</span>
+            </label>
+            <label class="engine-chip chip-emerald">
+              <input id="source-hackertarget" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">HackerTarget</span>
+            </label>
+            <label class="engine-chip">
+              <input id="source-sslmate" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">SSLMate (CertSpotter)</span>
+            </label>
+            <label class="engine-chip">
+              <input id="source-amass" type="checkbox">
+              <span class="chip-dot"></span>
+              <span class="chip-label">Amass (File-Streamed)</span>
+            </label>
+            <label class="engine-chip">
+              <input id="source-otx" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">AlienVault OTX</span>
+            </label>
+            <label class="engine-chip">
+              <input id="source-urlscan" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">URLScan.io</span>
+            </label>
+
+            <!-- Active DNS Brute-Force Chip Group -->
+            <div class="active-group">
+              <label class="engine-chip chip-active" style="border:none; background:transparent; padding:0;">
+                <input id="active-dns" type="checkbox">
+                <span class="chip-dot"></span>
+                <span class="chip-label">Active DNS Brute-Force</span>
+              </label>
+              <select id="active-wordlist" class="wordlist-select" title="Dictionary size for DNS brute-forcing">
+                <option value="5000" selected>Top 5,000 (SecLists)</option>
+                <option value="10000">Deep 10,000 (SecLists)</option>
+                <option value="20000">Extreme 20,000</option>
+                <option value="1500">Fast 1,500</option>
+              </select>
+            </div>
+
+            <!-- Multi-Resolver Live DNS Check Group -->
+            <div class="active-group resolver-group">
+              <label class="engine-chip chip-multidns" style="border:none; background:transparent; padding:0;" title="Live DNS Check: Queries Tier-1 public resolvers to determine domain liveness.">
+                <input id="validate-dns" type="checkbox" checked>
+                <span class="chip-dot"></span>
+                <span class="chip-label">Live DNS Check</span>
+              </label>
+              <select id="dns-resolver-target" class="resolver-select" title="Choose specific resolver or test all with auto-failover" onchange="updateQuickResolverLabel()">
+                <option value="all" selected>⚡ All Resolvers (Auto-Failover / Confirm Dead)</option>
+                <option value="cloudflare">Cloudflare (1.1.1.1 / 1.0.0.1)</option>
+                <option value="google">Google Public DNS (8.8.8.8 / 8.8.4.4)</option>
+                <option value="opendns">OpenDNS (208.67.222.222 / 208.67.220.220)</option>
+                <option value="quad9">Quad9 Secure (9.9.9.9 / 149.112.112.112)</option>
+                <option value="adguard">AdGuard DNS (94.140.14.14)</option>
+                <option value="controld">Control D (76.76.2.0)</option>
+                <option value="level3">Level3 / Lumen (4.2.2.1)</option>
+                <option value="system">System Local OS Only</option>
+              </select>
+            </div>
+            <label class="engine-chip chip-verbose">
+              <input id="verbose-dns" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">Live Verbose Query Log</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Dynamic Live Scanning Radar HUD (Visible when scan is active) -->
+        <div id="scan-hud" class="scan-hud hidden">
+          <div class="hud-top">
+            <!-- Cyber Radar Scanner Visual -->
+            <div class="radar-box">
+              <div class="radar-circle">
+                <div class="radar-sweep"></div>
+                <div class="radar-cross-h"></div>
+                <div class="radar-cross-v"></div>
+                <div class="radar-dot dot-1"></div>
+                <div class="radar-dot dot-2"></div>
+                <div class="radar-dot dot-3"></div>
+                <div class="radar-center-blip"></div>
+              </div>
+            </div>
+
+            <div class="hud-details">
+              <div class="hud-target-bar">
+                <div class="hud-target-pill">
+                  <span class="hud-tag">TARGET</span>
+                  <span id="hud-target" class="hud-target-text">domain.com</span>
+                </div>
+                <div class="hud-timer-pill">
+                  <span class="timer-icon">⏱</span>
+                  <span id="hud-timer" class="hud-timer-text">00:00</span>
+                </div>
+              </div>
+
+              <div id="hud-message" class="hud-message">Initiating reconnaissance engines...</div>
+
+              <div class="hud-progress-track">
+                <div id="hud-progress-fill" class="hud-progress-fill"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Real-time Engine Activity Badges -->
+          <div id="hud-chips-container" class="hud-chips-container">
+            <!-- Populated dynamically with pulsing active badges -->
+          </div>
+        </div>
+
+        <!-- Live Backend Terminal Log Stream (Toggleable on demand) -->
+        <div id="terminal-box" class="terminal-box hidden">
+          <div class="terminal-header">
+            <div class="terminal-left-group">
+              <div class="terminal-dots">
+                <span class="dot-red"></span>
+                <span class="dot-yellow"></span>
+                <span class="dot-green"></span>
+              </div>
+              <div class="terminal-tabs">
+                <button type="button" class="term-tab active" id="tab-active-dns" onclick="setTerminalFilter('active-dns')">🎯 Active DNS Only</button>
+                <button type="button" class="term-tab" id="tab-all" onclick="setTerminalFilter('all')">All Logs</button>
+                <button type="button" class="term-tab" id="tab-resolved" onclick="setTerminalFilter('resolved')">✅ Resolved Only</button>
+              </div>
+            </div>
+            <div class="terminal-actions">
+              <span id="term-counter" class="term-counter">0 QUERIES STREAMED</span>
+              <button type="button" id="term-scroll-btn" class="term-btn" onclick="toggleAutoScroll()">Auto-scroll: ON</button>
+              <button type="button" class="term-btn" onclick="clearTerminal()">Clear</button>
+              <button type="button" id="term-toggle-btn" class="term-btn" onclick="toggleTerminal()">Hide</button>
+            </div>
+          </div>
+          <div id="terminal-body" class="terminal-body">
+            <div class="terminal-line log-info">[00:00:00] SubZero v2.2 • Developed by Gulam Khan</div>
+            <div class="terminal-line muted-line">[00:00:00] Backend ready. Specifically streaming Active DNS brute-force queries (#0001, #0002...) live here...</div>
+          </div>
+        </div>
+
+        <!-- General Status Bar -->
+        <div id="status" class="status idle" aria-live="polite">
+          <span class="dot"></span>
+          <span class="text">Ready to scan</span>
+        </div>
+      </section>
+
+      <!-- Results Section Card -->
+      <section id="out" class="card out-card hidden">
+        <div class="top">
+          <div>
+            <div class="count-row">
+              <h2 id="count">0 Subdomains</h2>
+              <span id="cached-tag" class="badge badge-cached hidden">Cached</span>
+            </div>
+            <p id="source-stats" class="muted stats-line"></p>
+          </div>
+          <div class="actions">
+            <a id="link-html" href="#" class="action-btn action-btn-html" download title="Download Executive HTML Report">📄 HTML Report</a>
+            <a id="link-txt" href="#" class="action-btn" download>TXT</a>
+            <a id="link-csv" href="#" class="action-btn" download>CSV</a>
+            <a id="link-json" href="#" class="action-btn" download>JSON</a>
+            <a id="link-ips" href="#" class="action-btn action-btn-ips" download title="Download clean list of resolved unique IP addresses">IPs (.txt)</a>
+            <button type="button" id="btn-to-permutations" class="action-btn action-btn-permute" onclick="sendDiscoveredToPermutations()" title="Mutate discovered subdomains to uncover hidden staging/dev assets">🧬 Permute</button>
+            <button type="button" id="btn-to-archive" class="action-btn action-btn-archive" onclick="sendDomainToArchiveMiner()" title="Extract historical URLs & sensitive endpoints from Internet Archive">📜 Archive URLs</button>
+            <button type="button" id="btn-to-auditor" class="action-btn action-btn-auditor" onclick="sendDiscoveredToAuditor()" title="Audit DNS CNAMEs for dangling cloud pointers">🛡️ CNAME Audit</button>
+            <button type="button" id="btn-to-prober" class="action-btn action-btn-probe" onclick="sendDiscoveredToProber()" title="Send discovered subdomains to the Live HTTP Prober">🌐 Probe Status</button>
+            <button type="button" id="copy-ips-btn" class="action-btn action-btn-copy-ips" onclick="copyDiscoveredIPs()" title="Copy all unique resolved IPs to clipboard">📋 Copy IPs</button>
+            <button type="button" id="copy-btn" class="copy-all-btn" onclick="copyAll()">Copy Subs</button>
+          </div>
+        </div>
+
+        <!-- Real-Time Filter Bar -->
+        <div class="filter-row">
+          <div class="filter-wrapper">
+            <span class="filter-icon">🔍</span>
+            <input id="filter-input" type="text" placeholder="Filter subdomains (e.g. admin, api, vpn, mail)..." oninput="filterResults()">
+            <button type="button" id="filter-clear-btn" class="filter-clear hidden" onclick="clearFilter()">✕</button>
+          </div>
+          <div id="filter-counter" class="filter-counter hidden">Showing 0 of 0</div>
+        </div>
+
+        <div id="warnings" class="warn hidden"></div>
+        <div id="list" class="list"></div>
+      </section>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- VIEW 2: MULTI-DOMAIN BATCH QUEUE SCANNER                             -->
+    <!-- ==================================================================== -->
+    <div id="view-batch" class="platform-view hidden">
+      <section class="card hero">
+        <div class="brand-row">
+          <div>
+            <div class="eyebrow-badge">
+              <span class="pulse-dot"></span>
+              <span>ENTERPRISE QUEUE ENGINE</span>
+            </div>
+            <h2>Multi-Domain Batch Recon</h2>
+          </div>
+          <div class="brand-right">
+            <div class="developer-pill">
+              <span class="dev-badge-dot"></span>
+              <span class="dev-text">Developed by <strong class="dev-author">Gulam Khan</strong></span>
+            </div>
+          </div>
+        </div>
+        <p class="muted">Queue multiple domains for automated discovery. Executes sequential scans with zero memory leaks and automatic artifact generation.</p>
+
+        <div class="batch-input-card">
+          <label class="batch-label" for="batch-domains">
+            <span>TARGET DOMAIN QUEUE (ONE PER LINE)</span>
+            <span id="batch-count-badge" class="badge badge-cached">0 targets</span>
+          </label>
+          <textarea id="batch-domains" class="batch-textarea" rows="6" placeholder="tesla.com&#10;spacex.com&#10;stripe.com&#10;uber.com" spellcheck="false" oninput="updateBatchTargetCount()"></textarea>
+
+          <div class="batch-controls">
+            <button id="batch-start-btn" type="button" class="btn-primary" onclick="startBatchScan()">
+              <span>🚀 Launch Batch Recon</span>
+            </button>
+            <button id="batch-cancel-btn" type="button" class="btn-cancel hidden" onclick="cancelBatchScan()">
+              <span>✕ Cancel Batch</span>
+            </button>
+            <button type="button" class="term-btn" onclick="document.getElementById('batch-domains').value = ''; updateBatchTargetCount();">Clear</button>
+          </div>
+        </div>
+
+        <!-- Real-Time Batch Progress Track -->
+        <div id="batch-hud" class="scan-hud hidden" style="margin-top: 20px;">
+          <div class="hud-top">
+            <div class="radar-box">
+              <div class="radar-circle">
+                <div class="radar-sweep"></div>
+                <div class="radar-cross-h"></div>
+                <div class="radar-cross-v"></div>
+                <div class="radar-center-blip"></div>
+              </div>
+            </div>
+            <div class="hud-details">
+              <div class="hud-target-bar">
+                <div class="hud-target-pill">
+                  <span class="hud-tag">CURRENT</span>
+                  <span id="batch-current-domain" class="hud-target-text">None</span>
+                </div>
+                <div class="hud-timer-pill">
+                  <span class="timer-icon">📊</span>
+                  <span id="batch-progress-text" class="hud-timer-text">0 / 0</span>
+                </div>
+              </div>
+              <div id="batch-status-msg" class="hud-message">Queue idle.</div>
+              <div class="hud-progress-track">
+                <div id="batch-progress-fill" class="hud-progress-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Batch Results Summary Table -->
+        <div id="batch-results-box" class="batch-results-container hidden">
+          <div class="batch-results-header">
+            <h3>Batch Execution Summary</h3>
+            <span id="batch-total-subdomains" class="badge badge-conf-high">0 Subdomains Discovered</span>
+          </div>
+          <div class="table-responsive">
+            <table class="cyber-table" id="batch-summary-table">
+              <thead>
+                <tr>
+                  <th>Target Domain</th>
+                  <th>Status</th>
+                  <th>Subdomains Found</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="batch-summary-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- VIEW 3: SCAN HISTORY & DIFF TRACKER                                  -->
+    <!-- ==================================================================== -->
+    <div id="view-history" class="platform-view hidden">
+      <section class="card hero">
+        <div class="brand-row">
+          <div>
+            <div class="eyebrow-badge">
+              <span class="pulse-dot"></span>
+              <span>TIMELINE & DELTA TRACKER</span>
+            </div>
+            <h2>Scan History & Change Diff</h2>
+          </div>
+          <div class="brand-right">
+            <div class="developer-pill">
+              <span class="dev-badge-dot"></span>
+              <span class="dev-text">Developed by <strong class="dev-author">Gulam Khan</strong></span>
+            </div>
+          </div>
+        </div>
+        <p class="muted">Review historical discovery snapshots and calculate precise differences. Detect newly provisioned subdomains (+) and decommissioned endpoints (-).</p>
+
+        <!-- Diff Comparison Selector -->
+        <div class="diff-selection-bar">
+          <div class="diff-select-group">
+            <label for="diff-select-a">BASELINE SCAN (OLDER)</label>
+            <select id="diff-select-a" class="cyber-select">
+              <option value="">Select Baseline Scan...</option>
+            </select>
+          </div>
+          <div class="diff-vs-badge">VS</div>
+          <div class="diff-select-group">
+            <label for="diff-select-b">COMPARISON SCAN (NEWER)</label>
+            <select id="diff-select-b" class="cyber-select">
+              <option value="">Select Comparison Scan...</option>
+            </select>
+          </div>
+          <button type="button" class="btn-primary" onclick="computeScanDiff()">
+            <span>⚡ Compare Scans</span>
+          </button>
+        </div>
+
+        <!-- Diff Output Container -->
+        <div id="diff-output-box" class="diff-output-card hidden">
+          <div class="diff-metric-grid">
+            <div class="metric-card metric-added">
+              <div class="metric-val" id="diff-count-added">+0</div>
+              <div class="metric-lbl">New Subdomains Added</div>
+            </div>
+            <div class="metric-card metric-removed">
+              <div class="metric-val" id="diff-count-removed">-0</div>
+              <div class="metric-lbl">Subdomains Removed</div>
+            </div>
+            <div class="metric-card metric-unchanged">
+              <div class="metric-val" id="diff-count-unchanged">0</div>
+              <div class="metric-lbl">Persistent / Unchanged</div>
+            </div>
+          </div>
+
+          <div class="diff-lists-grid">
+            <div class="diff-column">
+              <h4 class="diff-col-header header-added">🟢 Newly Discovered Subdomains</h4>
+              <div id="diff-added-list" class="diff-item-list">
+                <div class="list-empty">No additions found.</div>
+              </div>
+            </div>
+            <div class="diff-column">
+              <h4 class="diff-col-header header-removed">🔴 Removed / Offline Subdomains</h4>
+              <div id="diff-removed-list" class="diff-item-list">
+                <div class="list-empty">No removals found.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Historical Scans Table -->
+        <div class="history-table-section">
+          <div class="history-header-row">
+            <h3>Recent Reconnaissance Scans</h3>
+            <button type="button" class="term-btn" onclick="fetchHistoryScans()">🔄 Refresh History</button>
+          </div>
+          <div class="table-responsive">
+            <table class="cyber-table" id="history-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Target Domain</th>
+                  <th>Subdomains Found</th>
+                  <th>Engines Used</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- VIEW 4: SEPARATE LIVE HTTP / SERVICE PROBER                          -->
+    <!-- ==================================================================== -->
+    <div id="view-prober" class="platform-view hidden">
+      <section class="card hero">
+        <div class="brand-row">
+          <div>
+            <div class="eyebrow-badge">
+              <span class="pulse-dot"></span>
+              <span>STRICTLY SEPARATE MODULE</span>
+            </div>
+            <h2>Live HTTP & Service Prober</h2>
+          </div>
+          <div class="brand-right">
+            <div class="developer-pill">
+              <span class="dev-badge-dot"></span>
+              <span class="dev-text">Developed by <strong class="dev-author">Gulam Khan</strong></span>
+            </div>
+          </div>
+        </div>
+        <p class="muted">On-demand service availability testing. Strictly separated from passive and active DNS enumeration to maintain pure, lightweight reconnaissance.</p>
+
+        <div class="batch-input-card">
+          <div class="prober-input-top">
+            <label class="batch-label" for="prober-hosts">
+              <span>TARGET HOSTS TO PROBE (ONE PER LINE)</span>
+              <span id="prober-count-badge" class="badge badge-cached">0 hosts</span>
+            </label>
+            <button type="button" class="action-btn" onclick="importFromCurrentScan()" style="font-size: 11px;">
+              📥 Import from Current Scan
+            </button>
+          </div>
+          <textarea id="prober-hosts" class="batch-textarea" rows="6" placeholder="admin.example.com&#10;api.example.com&#10;vpn.example.com" spellcheck="false" oninput="updateProberCount()"></textarea>
+
+          <div class="batch-controls" style="align-items: center; flex-wrap: wrap;">
+            <button id="probe-start-btn" type="button" class="btn-primary" onclick="startLiveProbe()">
+              <span>🌐 Probe Live Status</span>
+            </button>
+            <div class="active-group resolver-group" style="padding: 4px 10px;">
+              <span style="font-size: 11px; font-weight: 700; color: var(--accent-emerald);">RESOLVER:</span>
+              <select id="prober-resolver-target" class="resolver-select" title="DNS resolver used when validating host existence">
+                <option value="all" selected>⚡ All Resolvers (Auto-Failover)</option>
+                <option value="cloudflare">Cloudflare (1.1.1.1)</option>
+                <option value="google">Google (8.8.8.8)</option>
+                <option value="opendns">OpenDNS (208.67.222.222)</option>
+                <option value="quad9">Quad9 (9.9.9.9)</option>
+                <option value="adguard">AdGuard (94.140.14.14)</option>
+                <option value="controld">Control D (76.76.2.0)</option>
+                <option value="level3">Level3 (4.2.2.1)</option>
+                <option value="system">System Local OS</option>
+              </select>
+            </div>
+            <button type="button" class="term-btn" onclick="document.getElementById('prober-hosts').value = ''; updateProberCount();">Clear</button>
+          </div>
+        </div>
+
+        <!-- Prober Metrics Bar -->
+        <div id="prober-metrics" class="diff-metric-grid hidden" style="margin-top: 20px;">
+          <div class="metric-card metric-unchanged">
+            <div class="metric-val" id="metric-total-probed">0</div>
+            <div class="metric-lbl">Total Probed</div>
+          </div>
+          <div class="metric-card metric-added">
+            <div class="metric-val" id="metric-live-200">0</div>
+            <div class="metric-lbl">200 OK (Live)</div>
+          </div>
+          <div class="metric-card" style="border-color: rgba(56, 189, 248, 0.3);">
+            <div class="metric-val" style="color: #38bdf8;" id="metric-redirects">0</div>
+            <div class="metric-lbl">3xx Redirects</div>
+          </div>
+          <div class="metric-card" style="border-color: rgba(245, 158, 11, 0.3);">
+            <div class="metric-val" style="color: #f59e0b;" id="metric-auth-403">0</div>
+            <div class="metric-lbl">4xx Forbidden</div>
+          </div>
+          <div class="metric-card metric-removed">
+            <div class="metric-val" id="metric-dead">0</div>
+            <div class="metric-lbl">Dead / Unreachable</div>
+          </div>
+        </div>
+
+        <!-- Prober Filter & Search -->
+        <div id="prober-results-box" class="prober-results-container hidden" style="margin-top: 24px;">
+          <div class="filter-row">
+            <div class="filter-wrapper">
+              <span class="filter-icon">🔍</span>
+              <input id="prober-filter-input" type="text" placeholder="Filter by status (200, 403), title, server, or hostname..." oninput="filterProberResults()">
+            </div>
+            <button type="button" class="term-btn" onclick="copyLiveHosts()">Copy Live Hosts</button>
+          </div>
+
+          <div class="table-responsive" style="margin-top: 14px;">
+            <table class="cyber-table" id="prober-table">
+              <thead>
+                <tr>
+                  <th>Host</th>
+                  <th>Status</th>
+                  <th>Title</th>
+                  <th>Web Server</th>
+                  <th>Latency</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="prober-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- VIEW 5: DNS ASSET INTEGRITY & DANGLING CNAME AUDITOR                 -->
+    <!-- ==================================================================== -->
+    <div id="view-auditor" class="platform-view hidden">
+      <section class="card hero">
+        <div class="brand-row">
+          <div>
+            <div class="eyebrow-badge">
+              <span class="pulse-dot"></span>
+              <span>DEFENSIVE ASSET INTEGRITY</span>
+            </div>
+            <h2>DNS CNAME & Asset Hygiene Auditor</h2>
+          </div>
+          <div class="brand-right">
+            <div class="developer-pill">
+              <span class="dev-badge-dot"></span>
+              <span class="dev-text">Developed by <strong class="dev-author">Gulam Khan</strong></span>
+            </div>
+          </div>
+        </div>
+        <p class="muted">Audits DNS CNAME aliases against cloud providers (AWS S3, GitHub Pages, Heroku, Azure, Shopify, Zendesk, Fastly) to identify abandoned or dangling pointers before misconfigurations occur.</p>
+
+        <div class="batch-input-card">
+          <div class="prober-input-top">
+            <label class="batch-label" for="auditor-hosts">
+              <span>TARGET HOSTNAMES TO AUDIT (ONE PER LINE)</span>
+              <span id="auditor-count-badge" class="badge badge-cached">0 hosts</span>
+            </label>
+            <button type="button" class="action-btn" onclick="importCurrentScanToAuditor()" style="font-size: 11px;">
+              📥 Import from Current Scan
+            </button>
+          </div>
+          <textarea id="auditor-hosts" class="batch-textarea" rows="6" placeholder="assets.example.com&#10;docs.example.com&#10;support.example.com" spellcheck="false" oninput="updateAuditorCount()"></textarea>
+
+          <div class="batch-controls">
+            <button id="audit-start-btn" type="button" class="btn-primary" onclick="startCnameAudit()">
+              <span>🛡️ Run DNS Integrity Audit</span>
+            </button>
+            <button type="button" class="term-btn" onclick="document.getElementById('auditor-hosts').value = ''; updateAuditorCount();">Clear</button>
+          </div>
+        </div>
+
+        <!-- Auditor Metrics Grid -->
+        <div id="auditor-metrics" class="diff-metric-grid hidden" style="margin-top: 20px;">
+          <div class="metric-card metric-unchanged">
+            <div class="metric-val" id="auditor-metric-total">0</div>
+            <div class="metric-lbl">Total Audited</div>
+          </div>
+          <div class="metric-card metric-removed">
+            <div class="metric-val" id="auditor-metric-dangling">0</div>
+            <div class="metric-lbl">Dangling Pointers (Action Req.)</div>
+          </div>
+          <div class="metric-card" style="border-color: rgba(245, 158, 11, 0.35);">
+            <div class="metric-val" style="color: #fbbf24;" id="auditor-metric-cnames">0</div>
+            <div class="metric-lbl">Third-Party Cloud CNAMEs</div>
+          </div>
+          <div class="metric-card metric-added">
+            <div class="metric-val" id="auditor-metric-safe">0</div>
+            <div class="metric-lbl">Direct Records (Safe)</div>
+          </div>
+        </div>
+
+        <!-- Auditor Results Table -->
+        <div id="auditor-results-box" class="prober-results-container hidden" style="margin-top: 24px;">
+          <div class="filter-row">
+            <div class="filter-wrapper">
+              <span class="filter-icon">🔍</span>
+              <input id="auditor-filter-input" type="text" placeholder="Filter by host, service (AWS, GitHub, Heroku), or status..." oninput="filterAuditorResults()">
+            </div>
+            <button type="button" class="term-btn" onclick="copyDanglingHosts()">Copy Dangling Hosts</button>
+          </div>
+
+          <div class="table-responsive" style="margin-top: 14px;">
+            <table class="cyber-table" id="auditor-table">
+              <thead>
+                <tr>
+                  <th>Host</th>
+                  <th>CNAME Target</th>
+                  <th>Cloud Service</th>
+                  <th>Audit Status</th>
+                  <th>Evidence / Fingerprint</th>
+                  <th>Remediation Advisory</th>
+                </tr>
+              </thead>
+              <tbody id="auditor-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- VIEW 6: SUBDOMAIN PERMUTATION & MUTATION ENGINE                      -->
+    <!-- ==================================================================== -->
+    <div id="view-permutations" class="platform-view hidden">
+      <section class="card hero">
+        <div class="brand-row">
+          <div>
+            <div class="eyebrow-badge">
+              <span class="pulse-dot"></span>
+              <span>INTELLIGENT MUTATION & ALTDNS ENGINE</span>
+            </div>
+            <h2>Subdomain Permutations</h2>
+          </div>
+          <div class="brand-right">
+            <div class="developer-pill">
+              <span class="dev-badge-dot"></span>
+              <span class="dev-text">Developed by <strong class="dev-author">Gulam Khan</strong></span>
+            </div>
+          </div>
+        </div>
+        <p class="muted">Generates smart prefix/suffix mutations (dev-, api-, stage-, v1-, uat-) from seed subdomains and resolves them with multi-resolver DNS to discover hidden internal and staging assets.</p>
+
+        <div class="batch-input-card">
+          <div class="form-grid-2">
+            <div>
+              <label class="batch-label" for="perm-domain">TARGET ROOT DOMAIN</label>
+              <input id="perm-domain" type="text" class="cyber-input" placeholder="e.g. example.com" spellcheck="false">
+            </div>
+            <div>
+              <label class="batch-label" for="perm-resolver">DNS RESOLVER</label>
+              <select id="perm-resolver" class="cyber-select">
+                <option value="all" selected>⚡ All Resolvers (Auto-Failover / Confirm Dead)</option>
+                <option value="cloudflare">Cloudflare (1.1.1.1)</option>
+                <option value="google">Google Public DNS (8.8.8.8)</option>
+                <option value="opendns">OpenDNS (208.67.222.222)</option>
+                <option value="quad9">Quad9 (9.9.9.9)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <div class="batch-label">
+              <span>SEED SUBDOMAINS (ONE PER LINE OR PASTE)</span>
+              <button type="button" class="term-btn" onclick="populatePermSeedsFromRecon()">Pull from Single Recon</button>
+            </div>
+            <textarea id="perm-seeds" class="batch-textarea" rows="4" placeholder="api.example.com&#10;dev.example.com&#10;admin.example.com" spellcheck="false"></textarea>
+          </div>
+
+          <div class="batch-controls" style="margin-top: 16px;">
+            <button id="perm-scan-btn" type="button" class="btn-primary" onclick="startPermutationScan()">
+              <span>🚀 Run Permutation Scan</span>
+            </button>
+            <button id="perm-preview-btn" type="button" class="action-btn" onclick="previewPermutationCandidates()">
+              <span>👁️ Preview Candidates (Dry Run)</span>
+            </button>
+            <button type="button" class="term-btn" onclick="document.getElementById('perm-seeds').value = '';">Clear Seeds</button>
+          </div>
+        </div>
+
+        <!-- Permutation Results Container -->
+        <div id="perm-results-box" class="diff-output-card hidden">
+          <div class="diff-metric-grid">
+            <div class="metric-card metric-added">
+              <div class="metric-val" id="perm-metric-live">0</div>
+              <div class="metric-lbl">Live Subdomains Discovered</div>
+            </div>
+            <div class="metric-card metric-unchanged">
+              <div class="metric-val" id="perm-metric-candidates">0</div>
+              <div class="metric-lbl">Total Candidates Tested</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-val" id="perm-metric-time">0s</div>
+              <div class="metric-lbl">Scan Duration</div>
+            </div>
+          </div>
+
+          <div class="filter-row">
+            <div class="filter-wrapper">
+              <span class="filter-icon">🔍</span>
+              <input id="perm-filter-input" type="text" placeholder="Filter discovered mutations..." oninput="filterPermutationResults()">
+            </div>
+            <button type="button" class="term-btn" onclick="copyLivePermutations()">Copy Live Hosts</button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="cyber-table" id="perm-table">
+              <thead>
+                <tr>
+                  <th>Discovered Subdomain</th>
+                  <th>Status</th>
+                  <th>Resolved IPs</th>
+                  <th>Resolver</th>
+                  <th>Generating Rule</th>
+                </tr>
+              </thead>
+              <tbody id="perm-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- VIEW 7: HISTORICAL ARCHIVE & WAYBACK URL MINER                       -->
+    <!-- ==================================================================== -->
+    <div id="view-archive" class="platform-view hidden">
+      <section class="card hero">
+        <div class="brand-row">
+          <div>
+            <div class="eyebrow-badge">
+              <span class="pulse-dot"></span>
+              <span>WAYBACK & HISTORICAL RECON</span>
+            </div>
+            <h2>Historical Archive URL Miner</h2>
+          </div>
+          <div class="brand-right">
+            <div class="developer-pill">
+              <span class="dev-badge-dot"></span>
+              <span class="dev-text">Developed by <strong class="dev-author">Gulam</strong></span>
+            </div>
+          </div>
+        </div>
+        <p class="muted">Queries Internet Archive (Wayback Machine) and AlienVault OTX to extract historical subdomains, leaked configuration files (.env, .git, .sql, .zip), and sensitive parameter endpoints.</p>
+
+        <div class="batch-input-card">
+          <div class="row" style="margin-top: 0;">
+            <div class="input-wrapper">
+              <span class="input-icon">📜</span>
+              <input id="archive-domain-input" type="text" placeholder="Enter target domain, e.g. example.com" autocomplete="off" spellcheck="false">
+            </div>
+            <button id="archive-mine-btn" type="button" class="btn-primary" onclick="startArchiveMining()">
+              <span>🔍 Mine Historical Archives</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Archive Results Container -->
+        <div id="archive-results-box" class="diff-output-card hidden">
+          <div class="diff-metric-grid">
+            <div class="metric-card metric-unchanged">
+              <div class="metric-val" id="archive-metric-total">0</div>
+              <div class="metric-lbl">Total Archived URLs</div>
+            </div>
+            <div class="metric-card metric-added">
+              <div class="metric-val" id="archive-metric-subs">0</div>
+              <div class="metric-lbl">Historical Subdomains</div>
+            </div>
+            <div class="metric-card metric-removed">
+              <div class="metric-val" id="archive-metric-sensitive">0</div>
+              <div class="metric-lbl">Sensitive Files / Leaks</div>
+            </div>
+            <div class="metric-card" style="border-color: rgba(245, 158, 11, 0.35);">
+              <div class="metric-val" style="color: #fbbf24;" id="archive-metric-params">0</div>
+              <div class="metric-lbl">Parameter URLs</div>
+            </div>
+          </div>
+
+          <!-- Category Sub-Tabs -->
+          <div class="terminal-tabs" style="margin-bottom: 14px; background: rgba(0,0,0,0.5); padding: 5px;">
+            <button type="button" class="term-tab active" id="tab-archive-sensitive" onclick="switchArchiveCategory('sensitive')">🔴 Sensitive Files (<span id="count-cat-sensitive">0</span>)</button>
+            <button type="button" class="term-tab" id="tab-archive-params" onclick="switchArchiveCategory('params')">🔑 Parameters (<span id="count-cat-params">0</span>)</button>
+            <button type="button" class="term-tab" id="tab-archive-subs" onclick="switchArchiveCategory('subs')">🌐 Historical Subdomains (<span id="count-cat-subs">0</span>)</button>
+            <button type="button" class="term-tab" id="tab-archive-api" onclick="switchArchiveCategory('api')">⚡ API Routes (<span id="count-cat-api">0</span>)</button>
+            <button type="button" class="term-tab" id="tab-archive-all" onclick="switchArchiveCategory('all')">All URLs</button>
+          </div>
+
+          <div class="filter-row">
+            <div class="filter-wrapper">
+              <span class="filter-icon">🔍</span>
+              <input id="archive-filter-input" type="text" placeholder="Filter archive results..." oninput="filterArchiveResults()">
+            </div>
+            <button type="button" class="term-btn" onclick="copyCurrentArchiveCategory()">Copy Current List</button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="cyber-table" id="archive-table">
+              <thead id="archive-thead">
+                <!-- Dynamically switched per category -->
+              </thead>
+              <tbody id="archive-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Cyber Footer Attribution -->
+    <footer class="cyber-footer">
+      <div class="footer-wrap">
+        <div class="footer-brand">
+          <span class="footer-badge-dot"></span>
+          <span class="footer-title">SUBZERO v2.2</span>
+        </div>
+        <div class="footer-dev">
+          Designed & Developed by <strong class="author-name">Gulam Khan</strong>
+        </div>
+        <div class="footer-copy">
+          Pure High-Speed OSINT & Multi-Threaded DNS Reconnaissance
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    /* ==========================================================================
+       GLOBAL STATE & CONTROLLERS
+       ========================================================================== */
+    const statusEl = document.getElementById('status');
+    const statusText = () => statusEl.querySelector('.text');
+    const scanBtn = document.getElementById('scan-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const filterInput = document.getElementById('filter-input');
+    const filterClearBtn = document.getElementById('filter-clear-btn');
+    const filterCounter = document.getElementById('filter-counter');
+    const scanHud = document.getElementById('scan-hud');
+    const hudTarget = document.getElementById('hud-target');
+    const hudTimer = document.getElementById('hud-timer');
+    const hudMessage = document.getElementById('hud-message');
+    const hudProgressFill = document.getElementById('hud-progress-fill');
+    const hudChipsContainer = document.getElementById('hud-chips-container');
+    const heroCard = document.getElementById('hero-card');
+
+    let activeJobId = null;
+    let pollTimer = null;
+    let clockTimer = null;
+    let tickerTimer = null;
+    let elapsedSeconds = 0;
+    let currentResults = [];
+    let lastLogIndex = 0;
+    let autoScroll = true;
+    let allReceivedLogs = [];
+    let currentLogFilter = 'active-dns';
+
+    // Batch State
+    let activeBatchId = null;
+    let batchPollTimer = null;
+
+    // Prober State
+    let currentProberResults = [];
+
+    const TICKER_MESSAGES = [
+      "Analyzing Certificate Transparency logs (crt.sh & SSLMate)...",
+      "Scanning passive OSINT & reverse DNS records (HackerTarget)...",
+      "Federating multi-source discovery across 52 Subfinder engines...",
+      "Querying rapid DNS historical records (RapidDNS)...",
+      "Executing high-speed parallel DNS lookups...",
+      "Normalizing, verifying, and ranking discovered hosts..."
+    ];
+    let tickerIndex = 0;
+
+    /* ==========================================================================
+       TAB SWITCHING CONTROLLER (Zero clutter)
+       ========================================================================== */
+    function switchPlatformTab(tabId) {
+      document.querySelectorAll('.platform-view').forEach(view => {
+        view.classList.remove('active');
+        view.classList.add('hidden');
+      });
+
+      document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+
+      const targetView = document.getElementById(`view-${tabId}`);
+      const targetBtn = document.getElementById(`tab-btn-${tabId}`);
+
+      if (targetView) {
+        targetView.classList.remove('hidden');
+        targetView.classList.add('active');
+      }
+      if (targetBtn) {
+        targetBtn.classList.add('active');
+      }
+
+      // Auto-load history data if switching to history tab
+      if (tabId === 'history') {
+        fetchHistoryScans();
+      }
+    }
+
+    /* ==========================================================================
+       STATUS & TICKER HELPERS
+       ========================================================================== */
+    function setStatus(type, message) {
+      statusEl.className = 'status ' + type;
+      statusText().textContent = message;
+    }
+
+    function updateExportLinks(jobId) {
+      document.getElementById('link-txt').href = `/api/results.txt?job=${jobId}`;
+      document.getElementById('link-csv').href = `/api/results.csv?job=${jobId}`;
+      document.getElementById('link-json').href = `/api/results.json?job=${jobId}`;
+      const linkIps = document.getElementById('link-ips');
+      if (linkIps) {
+        linkIps.href = `/api/results/ips.txt?job=${jobId}`;
+      }
+      const linkHtml = document.getElementById('link-html');
+      if (linkHtml) {
+        linkHtml.href = `/api/results.html?job=${jobId}`;
+      }
+    }
+
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60).toString().padStart(2, '0');
+      const s = (sec % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function startClock() {
+      elapsedSeconds = 0;
+      hudTimer.textContent = '00:00';
+      if (clockTimer) clearInterval(clockTimer);
+      clockTimer = setInterval(() => {
+        elapsedSeconds++;
+        hudTimer.textContent = formatTime(elapsedSeconds);
+      }, 1000);
+    }
+
+    function stopClock() {
+      if (clockTimer) {
+        clearInterval(clockTimer);
+        clockTimer = null;
+      }
+    }
+
+    function startTicker() {
+      tickerIndex = 0;
+      if (tickerTimer) clearInterval(tickerTimer);
+      tickerTimer = setInterval(() => {
+        tickerIndex = (tickerIndex + 1) % TICKER_MESSAGES.length;
+        hudMessage.textContent = TICKER_MESSAGES[tickerIndex];
+      }, 2400);
+    }
+
+    function stopTicker() {
+      if (tickerTimer) {
+        clearInterval(tickerTimer);
+        tickerTimer = null;
+      }
+    }
+
+    function populateHudChips(sources, activeDns) {
+      hudChipsContainer.innerHTML = '';
+      const allActive = [...sources];
+      if (activeDns) allActive.push('active-dns');
+
+      allActive.forEach(name => {
+        const chip = document.createElement('div');
+        chip.className = 'hud-chip active';
+        chip.id = `hud-chip-${name}`;
+
+        const dot = document.createElement('span');
+        dot.className = 'hud-chip-dot';
+
+        const label = document.createElement('span');
+        label.textContent = name;
+
+        chip.appendChild(dot);
+        chip.appendChild(label);
+        hudChipsContainer.appendChild(chip);
+      });
+    }
+
+    /* ==========================================================================
+       SINGLE SCAN EXECUTION
+       ========================================================================== */
+    async function startScan() {
+      const domainInput = document.getElementById('domain');
+      const domain = domainInput.value.trim().toLowerCase();
+      if (!domain) {
+        setStatus('error', 'Please enter a target domain.');
+        return;
+      }
+
+      const sources = [];
+      if (document.getElementById('source-subfinder').checked) sources.push('subfinder');
+      if (document.getElementById('source-subfinder_all').checked) sources.push('subfinder_all');
+      if (document.getElementById('source-crtsh').checked) sources.push('crtsh');
+      if (document.getElementById('source-rapiddns').checked) sources.push('rapiddns');
+      if (document.getElementById('source-hackertarget') && document.getElementById('source-hackertarget').checked) sources.push('hackertarget');
+      if (document.getElementById('source-sslmate').checked) sources.push('sslmate');
+      if (document.getElementById('source-amass').checked) sources.push('amass');
+      if (document.getElementById('source-otx') && document.getElementById('source-otx').checked) sources.push('otx');
+      if (document.getElementById('source-urlscan') && document.getElementById('source-urlscan').checked) sources.push('urlscan');
+
+      const activeDns = document.getElementById('active-dns').checked;
+      const validateDns = document.getElementById('validate-dns').checked;
+
+      if (sources.length === 0 && !activeDns) {
+        setStatus('error', 'Select at least one discovery source or enable active DNS brute-force.');
+        return;
+      }
+
+      // Reset state & start dynamic HUD
+      if (pollTimer) clearInterval(pollTimer);
+      activeJobId = null;
+      currentResults = [];
+      filterInput.value = '';
+      clearFilter();
+
+      lastLogIndex = 0;
+      allReceivedLogs = [];
+      const counterEl = document.getElementById('term-counter');
+      if (counterEl) counterEl.textContent = '0 QUERIES STREAMED';
+      const termBody = document.getElementById('terminal-body');
+      if (termBody) termBody.innerHTML = '<div class="terminal-line muted-line">[00:00:00] Initializing scan telemetry stream (filtering on Active DNS queries)...</div>';
+
+      scanBtn.disabled = true;
+      cancelBtn.classList.remove('hidden');
+      heroCard.classList.add('scanning-glow');
+
+      hudTarget.textContent = domain;
+      hudMessage.textContent = 'Engaging reconnaissance engines...';
+      hudProgressFill.style.width = '15%';
+      populateHudChips(sources, activeDns);
+      scanHud.classList.remove('hidden');
+      startClock();
+      startTicker();
+
+      setStatus('loading', 'Initiating scan pipeline...');
+
+      try {
+        const response = await fetch('/api/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            domain: domain,
+            sources: sources,
+            validate_dns: validateDns,
+            active_dns: activeDns,
+            active_wordlist: document.getElementById('active-wordlist').value,
+            selected_resolver: document.getElementById('dns-resolver-target') ? document.getElementById('dns-resolver-target').value : 'all',
+            verbose_dns: document.getElementById('verbose-dns') ? document.getElementById('verbose-dns').checked : true
+          })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to start scan.');
+        }
+
+        activeJobId = data.id;
+        updateExportLinks(activeJobId);
+
+        if (data.logs && data.logs.length > 0) {
+          appendTerminalLogs(data.logs);
+          lastLogIndex += data.logs.length;
+        }
+
+        if (data.status === 'completed') {
+          handleJobCompleted(data);
+        } else {
+          setStatus('loading', data.progress || 'Scanning passive & active sources...');
+          pollTimer = setInterval(checkJobStatus, 350);
+        }
+      } catch (err) {
+        cleanupScanState();
+        setStatus('error', 'Error: ' + err.message);
+      }
+    }
+
+    async function checkJobStatus() {
+      if (!activeJobId) return;
+
+      try {
+        const res = await fetch(`/api/scan/${activeJobId}?since=${lastLogIndex}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Job check failed.');
+        }
+
+        // Live Log Stream (delta fetch)
+        if (data.logs && data.logs.length > 0) {
+          appendTerminalLogs(data.logs);
+          lastLogIndex += data.logs.length;
+        }
+
+        if (data.total_logs !== undefined) {
+          const termCounter = document.getElementById('term-counter');
+          if (termCounter) termCounter.textContent = `${data.total_logs.toLocaleString()} QUERIES STREAMED`;
+        }
+
+        // Update progress bar based on finished sources
+        if (data.sources && Object.keys(data.sources).length > 0) {
+          const completedCount = Object.keys(data.sources).length;
+          const chipElements = hudChipsContainer.querySelectorAll('.hud-chip');
+          const totalChips = chipElements.length || 1;
+          const pct = Math.min(95, Math.round(20 + (completedCount / totalChips) * 75));
+          hudProgressFill.style.width = `${pct}%`;
+
+          // Mark individual source chips done
+          Object.keys(data.sources).forEach(src => {
+            const chip = document.getElementById(`hud-chip-${src}`);
+            if (chip && !chip.classList.contains('done')) {
+              chip.classList.remove('active');
+              chip.classList.add('done');
+            }
+          });
+        }
+
+        if (data.status === 'completed') {
+          clearInterval(pollTimer);
+          pollTimer = null;
+          hudProgressFill.style.width = '100%';
+          setTimeout(() => handleJobCompleted(data), 350);
+        } else if (data.status === 'cancelled') {
+          cleanupScanState();
+          setStatus('idle', 'Scan was cancelled.');
+        } else {
+          setStatus('loading', data.progress || 'Scanning selected engines...');
+        }
+      } catch (err) {
+        cleanupScanState();
+        setStatus('error', 'Error monitoring scan: ' + err.message);
+      }
+    }
+
+    function cleanupScanState() {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = null;
+      stopClock();
+      stopTicker();
+      scanBtn.disabled = false;
+      cancelBtn.classList.add('hidden');
+      scanHud.classList.add('hidden');
+      heroCard.classList.remove('scanning-glow');
+    }
+
+    async function cancelScan() {
+      if (!activeJobId) return;
+      try {
+        cancelBtn.disabled = true;
+        setStatus('loading', 'Cancelling scan...');
+        await fetch(`/api/scan/${activeJobId}/cancel`, { method: 'POST' });
+      } catch (e) {
+        console.error('Cancel request failed', e);
+      } finally {
+        cancelBtn.disabled = false;
+      }
+    }
+
+    function handleJobCompleted(data) {
+      if (data.logs && data.logs.length > 0) {
+        appendTerminalLogs(data.logs);
+        lastLogIndex += data.logs.length;
+      }
+      if (data.total_logs !== undefined) {
+        const termCounter = document.getElementById('term-counter');
+        if (termCounter) termCounter.textContent = `${data.total_logs.toLocaleString()} QUERIES STREAMED`;
+      }
+      cleanupScanState();
+      setStatus('success', `Scan complete in ${formatTime(elapsedSeconds)} — Found ${data.results ? data.results.length : 0} unique subdomains.`);
+
+      const outCard = document.getElementById('out');
+      outCard.classList.remove('hidden');
+
+      outCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      // Cached badge
+      const cachedTag = document.getElementById('cached-tag');
+      if (data.cached) {
+        cachedTag.classList.remove('hidden');
+      } else {
+        cachedTag.classList.add('hidden');
+      }
+
+      // Source stats
+      const stats = Object.entries(data.sources || {}).map(([k, v]) => `${k}: ${v}`).join('  •  ');
+      document.getElementById('source-stats').textContent = stats || 'No external sources returned results';
+
+      // Warnings
+      const warningsEl = document.getElementById('warnings');
+      if (data.errors && data.errors.length > 0) {
+        warningsEl.textContent = data.errors.join('\n');
+        warningsEl.classList.remove('hidden');
+      } else {
+        warningsEl.classList.add('hidden');
+      }
+
+      currentResults = data.results || [];
+      renderResults(currentResults);
+    }
+
+    function renderResults(results) {
+      const countEl = document.getElementById('count');
+      countEl.textContent = `${results.length} Subdomain${results.length === 1 ? '' : 's'}`;
+
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+
+      if (results.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'list-empty';
+        empty.innerHTML = '<span>∅</span> No subdomains match your criteria.';
+        list.appendChild(empty);
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      results.forEach((row, idx) => {
+        const item = document.createElement('div');
+        item.className = 'list-item';
+
+        // Left Column: Index (#001) + Full Subdomain Name + Quick Copy Button
+        const subCol = document.createElement('div');
+        subCol.className = 'subdomain-col';
+
+        const idxTag = document.createElement('span');
+        idxTag.className = 'row-idx';
+        idxTag.textContent = `#${(idx + 1).toString().padStart(3, '0')}`;
+        subCol.appendChild(idxTag);
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'subdomain-name';
+        nameSpan.textContent = row.subdomain;
+        nameSpan.title = `Click to copy: ${row.subdomain}`;
+        nameSpan.onclick = (e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(row.subdomain);
+          rowCopyBtn.innerHTML = '✓';
+          rowCopyBtn.classList.add('copied');
+          setTimeout(() => {
+            rowCopyBtn.innerHTML = '📋';
+            rowCopyBtn.classList.remove('copied');
+          }, 1200);
+        };
+        subCol.appendChild(nameSpan);
+
+        const rowCopyBtn = document.createElement('button');
+        rowCopyBtn.className = 'row-copy-btn';
+        rowCopyBtn.type = 'button';
+        rowCopyBtn.title = `Copy ${row.subdomain}`;
+        rowCopyBtn.innerHTML = '📋';
+        rowCopyBtn.onclick = (e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(row.subdomain);
+          rowCopyBtn.innerHTML = '✓';
+          rowCopyBtn.classList.add('copied');
+          setTimeout(() => {
+            rowCopyBtn.innerHTML = '📋';
+            rowCopyBtn.classList.remove('copied');
+          }, 1200);
+        };
+        subCol.appendChild(rowCopyBtn);
+        item.appendChild(subCol);
+
+        // Right Column: Clean, Compact Metadata (Max 3 Badges: IP, WAF/Origin, Sources)
+        const metaSpan = document.createElement('div');
+        metaSpan.className = 'meta-tags';
+
+        // 1. Live IP Address Badge
+        if (row.dns_ips && row.dns_ips.length > 0) {
+          const ipBadge = document.createElement('span');
+          ipBadge.className = 'badge badge-ip';
+          ipBadge.textContent = row.primary_ip || row.dns_ips[0];
+          ipBadge.title = `Resolved IP(s): ${row.dns_ips.join(', ')}`;
+          metaSpan.appendChild(ipBadge);
+
+          // 2. Cloud WAF vs Direct Origin Badge
+          const wafBadge = document.createElement('span');
+          if (row.is_cdn || (row.ip_intel && row.ip_intel.is_cdn)) {
+            const btype = (row.ip_intel && row.ip_intel.badge_type) ? row.ip_intel.badge_type : 'cloudflare';
+            wafBadge.className = `badge badge-waf badge-waf-${btype}`;
+            wafBadge.textContent = `🛡️ ${row.waf_provider || 'WAF Protected'}`;
+            wafBadge.title = `Protected by CDN/WAF: ${row.waf_provider || 'Cloudflare / CDN'}`;
+            metaSpan.appendChild(wafBadge);
+          } else if (row.is_origin || row.dns === 'resolved') {
+            wafBadge.className = 'badge badge-origin-ip';
+            const prov = (row.waf_provider && row.waf_provider !== 'Direct Server' && row.waf_provider !== 'None') ? ` (${row.waf_provider})` : '';
+            wafBadge.textContent = `🔥 Direct Origin IP${prov}`;
+            wafBadge.title = `Direct Origin Host IP (Potential WAF Bypass Target!): ${row.dns_ips.join(', ')}`;
+            metaSpan.appendChild(wafBadge);
+          }
+        } else if (row.dns && row.dns !== 'not-checked') {
+          const dnsBadge = document.createElement('span');
+          if (row.dns === 'resolved') {
+            dnsBadge.className = 'badge badge-dns-live';
+            const resLabel = row.dns_resolver ? row.dns_resolver.split(' ')[0] : 'Live';
+            dnsBadge.textContent = `✓ ${resLabel}`;
+            dnsBadge.title = row.dns_summary || `Resolved via ${row.dns_resolver || 'Public DNS'}`;
+          } else {
+            dnsBadge.className = 'badge badge-dns-dead';
+            dnsBadge.textContent = '✗ Dead';
+            dnsBadge.title = row.dns_summary || 'Dead: Confirmed unresolved across all configured resolvers';
+          }
+          metaSpan.appendChild(dnsBadge);
+        }
+
+        // 3. Compact Sources Pill (Eliminates visual noise of 7 separate tags into 1 clean pill)
+        const sources = row.sources || [];
+        if (sources.length > 0) {
+          const srcBadge = document.createElement('span');
+          srcBadge.className = 'badge badge-src badge-sources-pill';
+          const confStar = (row.confidence === 'high') ? '⭐ ' : '';
+          if (sources.length === 1) {
+            srcBadge.textContent = `${confStar}${sources[0]}`;
+          } else {
+            srcBadge.textContent = `${confStar}${sources[0]} +${sources.length - 1}`;
+          }
+          srcBadge.title = `Discovered by ${sources.length} sources: ${sources.join(', ')}${row.confidence === 'high' ? ' (High Confidence)' : ''}`;
+          metaSpan.appendChild(srcBadge);
+        }
+
+        item.appendChild(metaSpan);
+        fragment.appendChild(item);
+      });
+
+      list.appendChild(fragment);
+    }
+
+    function filterResults() {
+      const q = filterInput.value.trim().toLowerCase();
+      if (!q) {
+        clearFilter();
+        renderResults(currentResults);
+        return;
+      }
+      filterClearBtn.classList.remove('hidden');
+      const filtered = currentResults.filter(r => r.subdomain.toLowerCase().includes(q));
+      filterCounter.classList.remove('hidden');
+      filterCounter.textContent = `Showing ${filtered.length} of ${currentResults.length}`;
+      renderResults(filtered);
+    }
+
+    function clearFilter() {
+      filterInput.value = '';
+      filterClearBtn.classList.add('hidden');
+      filterCounter.classList.add('hidden');
+      renderResults(currentResults);
+    }
+
+    async function copyAll() {
+      const q = filterInput.value.trim().toLowerCase();
+      const listToCopy = q ? currentResults.filter(r => r.subdomain.toLowerCase().includes(q)) : currentResults;
+      const text = listToCopy.map(r => r.subdomain).join('\n');
+      if (!text) {
+        setStatus('idle', 'Nothing to copy.');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        const copyBtn = document.getElementById('copy-btn');
+        const orig = copyBtn.textContent;
+        copyBtn.textContent = 'Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => {
+          copyBtn.textContent = orig;
+          copyBtn.classList.remove('copied');
+        }, 1500);
+      } catch (err) {
+        console.error('Clipboard copy failed:', err);
+      }
+    }
+
+    async function copyDiscoveredIPs() {
+      const allIps = new Set();
+      currentResults.forEach(r => {
+        (r.dns_ips || []).forEach(ip => {
+          if (ip && ip.trim()) allIps.add(ip.trim());
+        });
+      });
+      const ipsList = Array.from(allIps);
+      if (ipsList.length === 0) {
+        setStatus('idle', 'No resolved IPs found to copy. Make sure Live DNS Check is enabled.');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(ipsList.join('\n'));
+        const btn = document.getElementById('copy-ips-btn');
+        if (btn) {
+          const orig = btn.textContent;
+          btn.textContent = `✓ Copied (${ipsList.length} IPs)`;
+          btn.classList.add('copied-flash');
+          setTimeout(() => {
+            btn.textContent = orig;
+            btn.classList.remove('copied-flash');
+          }, 1800);
+        }
+      } catch (err) {
+        console.error('Clipboard copy failed:', err);
+      }
+    }
+
+    /* ==========================================================================
+       TERMINAL LOGGING ENGINE
+       ========================================================================== */
+    function setTerminalFilter(filterType) {
+      currentLogFilter = filterType;
+
+      document.querySelectorAll('.term-tab').forEach(btn => btn.classList.remove('active'));
+      const activeBtn = document.getElementById(`tab-${filterType}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const termBody = document.getElementById('terminal-body');
+      if (!termBody) return;
+      termBody.innerHTML = '';
+
+      const matching = allReceivedLogs.filter(matchesFilter);
+      if (matching.length === 0) {
+        termBody.innerHTML = `<div class="terminal-line muted-line">[00:00:00] No queries matching tab '${filterType}' yet.</div>`;
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      matching.slice(-2500).forEach(line => {
+        fragment.appendChild(createLogElement(line));
+      });
+      termBody.appendChild(fragment);
+
+      if (autoScroll) {
+        termBody.scrollTop = termBody.scrollHeight;
+      }
+    }
+
+    function matchesFilter(line) {
+      if (currentLogFilter === 'active-dns') {
+        return line.includes('[ACTIVE-DNS');
+      }
+      if (currentLogFilter === 'resolved') {
+        return line.includes('[RESOLVED]') || line.includes('[DNS-RESOLVED]') || line.includes('Discovered ->') || line.includes('[SUCCESS]');
+      }
+      return true; // 'all'
+    }
+
+    function createLogElement(line) {
+      const div = document.createElement('div');
+      div.className = 'terminal-line';
+
+      if (line.includes('[RESOLVED]') || line.includes('[SUCCESS]') || line.includes('[DNS-RESOLVED]')) {
+        div.classList.add('log-resolved');
+      } else if (line.includes('[TIMEOUT]') || line.includes('[!]') || line.includes('Exception')) {
+        div.classList.add('log-timeout');
+      } else if (line.includes('PROGRESS')) {
+        div.classList.add('log-progress');
+      } else if (line.includes('NXDOMAIN')) {
+        div.classList.add('log-nxdomain');
+      } else if (line.includes('[*]')) {
+        div.classList.add('log-info');
+      } else {
+        div.classList.add('log-general');
+      }
+
+      div.textContent = line;
+      return div;
+    }
+
+    function appendTerminalLogs(newEntries) {
+      const termBody = document.getElementById('terminal-body');
+      if (!termBody || !newEntries || newEntries.length === 0) return;
+
+      if (allReceivedLogs.length === 0 && termBody.querySelector('.muted-line')) {
+        termBody.innerHTML = '';
+      }
+
+      newEntries.forEach(line => allReceivedLogs.push(line));
+
+      const fragment = document.createDocumentFragment();
+      let renderedCount = 0;
+
+      newEntries.forEach(line => {
+        if (matchesFilter(line)) {
+          fragment.appendChild(createLogElement(line));
+          renderedCount++;
+        }
+      });
+
+      if (renderedCount > 0) {
+        termBody.appendChild(fragment);
+
+        while (termBody.children.length > 5000) {
+          termBody.removeChild(termBody.firstElementChild);
+        }
+
+        if (autoScroll) {
+          termBody.scrollTop = termBody.scrollHeight;
+        }
+      }
+    }
+
+    function toggleAutoScroll() {
+      autoScroll = !autoScroll;
+      const btn = document.getElementById('term-scroll-btn');
+      if (btn) {
+        btn.textContent = autoScroll ? 'Auto-scroll: ON' : 'Auto-scroll: PAUSED';
+        btn.style.color = autoScroll ? 'var(--accent-cyan)' : '#f59e0b';
+        btn.style.borderColor = autoScroll ? 'rgba(0, 242, 254, 0.4)' : 'rgba(245, 158, 11, 0.4)';
+      }
+    }
+
+    function clearTerminal() {
+      allReceivedLogs = [];
+      const termBody = document.getElementById('terminal-body');
+      if (termBody) {
+        termBody.innerHTML = '<div class="terminal-line muted-line">[00:00:00] Console buffer cleared.</div>';
+      }
+      const counter = document.getElementById('term-counter');
+      if (counter) counter.textContent = '0 QUERIES STREAMED';
+    }
+
+    function toggleTerminal() {
+      const termBody = document.getElementById('terminal-body');
+      const toggleBtn = document.getElementById('term-toggle-btn');
+      if (!termBody || !toggleBtn) return;
+      if (termBody.classList.contains('hidden')) {
+        termBody.classList.remove('hidden');
+        toggleBtn.textContent = 'Hide';
+      } else {
+        termBody.classList.add('hidden');
+        toggleBtn.textContent = 'Show';
+      }
+    }
+
+    /* ==========================================================================
+       VIEW 2: MULTI-DOMAIN BATCH QUEUE FUNCTIONS
+       ========================================================================== */
+    function updateBatchTargetCount() {
+      const val = document.getElementById('batch-domains').value;
+      const lines = val.split('\n').map(l => l.trim()).filter(Boolean);
+      document.getElementById('batch-count-badge').textContent = `${lines.length} targets`;
+    }
+
+    async function startBatchScan() {
+      const val = document.getElementById('batch-domains').value;
+      const domains = val.split('\n').map(l => l.trim()).filter(Boolean);
+      if (domains.length === 0) {
+        alert('Please enter at least one target domain.');
+        return;
+      }
+
+      const startBtn = document.getElementById('batch-start-btn');
+      const cancelBtn = document.getElementById('batch-cancel-btn');
+      const batchHud = document.getElementById('batch-hud');
+      const batchProgressFill = document.getElementById('batch-progress-fill');
+      const batchCurrentDomain = document.getElementById('batch-current-domain');
+      const batchProgressText = document.getElementById('batch-progress-text');
+      const batchStatusMsg = document.getElementById('batch-status-msg');
+      const batchResultsBox = document.getElementById('batch-results-box');
+      const tbody = document.getElementById('batch-summary-tbody');
+
+      startBtn.disabled = true;
+      cancelBtn.classList.remove('hidden');
+      batchHud.classList.remove('hidden');
+      batchResultsBox.classList.remove('hidden');
+      tbody.innerHTML = '';
+
+      batchProgressFill.style.width = '0%';
+      batchProgressText.textContent = `0 / ${domains.length}`;
+      batchStatusMsg.textContent = 'Enqueuing targets into batch engine...';
+
+      try {
+        const res = await fetch('/api/batch/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            domains: domains,
+            validate_dns: document.getElementById('validate-dns') ? document.getElementById('validate-dns').checked : false,
+            selected_resolver: document.getElementById('dns-resolver-target') ? document.getElementById('dns-resolver-target').value : 'all'
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to start batch');
+
+        activeBatchId = data.batch_id;
+        pollBatchStatus(activeBatchId);
+      } catch (err) {
+        alert('Batch Error: ' + err.message);
+        startBtn.disabled = false;
+        cancelBtn.classList.add('hidden');
+        batchHud.classList.add('hidden');
+      }
+    }
+
+    function pollBatchStatus(batchId) {
+      if (batchPollTimer) clearInterval(batchPollTimer);
+      batchPollTimer = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/batch/${batchId}`);
+          const data = await res.json();
+          if (!res.ok) return;
+
+          const total = data.total_domains || 1;
+          const completed = data.completed_count || 0;
+          const pct = Math.round((completed / total) * 100);
+
+          document.getElementById('batch-progress-fill').style.width = `${pct}%`;
+          document.getElementById('batch-progress-text').textContent = `${completed} / ${total}`;
+          document.getElementById('batch-current-domain').textContent = data.current_domain || 'Processing...';
+          document.getElementById('batch-status-msg').textContent = data.status === 'completed'
+            ? `Batch completed! Discovered ${data.total_subdomains_found} total subdomains.`
+            : `Executing scan on ${data.current_domain || 'next domain'}...`;
+
+          renderBatchSummaryTable(data.domains);
+
+          if (data.status === 'completed' || data.status === 'cancelled') {
+            clearInterval(batchPollTimer);
+            batchPollTimer = null;
+            document.getElementById('batch-start-btn').disabled = false;
+            document.getElementById('batch-cancel-btn').classList.add('hidden');
+            document.getElementById('batch-total-subdomains').textContent = `${data.total_subdomains_found} Total Subdomains Discovered`;
+          }
+        } catch (e) {
+          console.error('Batch status check failed', e);
+        }
+      }, 1000);
+    }
+
+    function renderBatchSummaryTable(domains) {
+      const tbody = document.getElementById('batch-summary-tbody');
+      tbody.innerHTML = '';
+      (domains || []).forEach(d => {
+        const tr = document.createElement('tr');
+        
+        let statusBadge = `<span class="badge badge-dns">${d.status}</span>`;
+        if (d.status === 'completed') statusBadge = `<span class="badge badge-conf-high">completed</span>`;
+        if (d.status === 'scanning') statusBadge = `<span class="badge badge-active">scanning...</span>`;
+        if (d.status === 'failed') statusBadge = `<span class="badge badge-dns badge-unresolved">failed</span>`;
+
+        let actionBtns = '-';
+        if (d.job_id) {
+          actionBtns = `
+            <a href="/api/results.html?job=${d.job_id}" class="action-btn" download style="font-size:11px; padding:4px 8px;">HTML</a>
+            <a href="/api/results.csv?job=${d.job_id}" class="action-btn" download style="font-size:11px; padding:4px 8px;">CSV</a>
+          `;
+        }
+
+        tr.innerHTML = `
+          <td><strong>${d.domain}</strong></td>
+          <td>${statusBadge}</td>
+          <td><span class="hud-target-text" style="font-size:13px;">${d.subdomain_count || 0}</span></td>
+          <td>${actionBtns}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function cancelBatchScan() {
+      if (!activeBatchId) return;
+      try {
+        await fetch(`/api/batch/${activeBatchId}/cancel`, { method: 'POST' });
+        document.getElementById('batch-status-msg').textContent = 'Batch scan cancelling...';
+      } catch (e) {
+        console.error('Failed to cancel batch', e);
+      }
+    }
+
+    /* ==========================================================================
+       VIEW 3: SCAN HISTORY & DIFF ENGINE
+       ========================================================================== */
+    let cachedHistoryScans = [];
+
+    async function fetchHistoryScans() {
+      try {
+        const res = await fetch('/api/history');
+        const data = await res.json();
+        if (!res.ok) return;
+
+        cachedHistoryScans = data.scans || [];
+        populateDiffDropdowns(cachedHistoryScans);
+        renderHistoryTable(cachedHistoryScans);
+      } catch (err) {
+        console.error('Failed to fetch history', err);
+      }
+    }
+
+    function populateDiffDropdowns(scans) {
+      const selectA = document.getElementById('diff-select-a');
+      const selectB = document.getElementById('diff-select-b');
+      selectA.innerHTML = '<option value="">Select Baseline Scan (Older)...</option>';
+      selectB.innerHTML = '<option value="">Select Comparison Scan (Newer)...</option>';
+
+      scans.forEach(s => {
+        const dateStr = new Date(s.timestamp).toLocaleString();
+        const text = `${s.domain} (${dateStr}) — ${s.result_count} hosts`;
+        
+        const optA = document.createElement('option');
+        optA.value = s.id;
+        optA.textContent = text;
+        selectA.appendChild(optA);
+
+        const optB = document.createElement('option');
+        optB.value = s.id;
+        optB.textContent = text;
+        selectB.appendChild(optB);
+      });
+
+      // Default to picking first two if available
+      if (scans.length >= 2) {
+        selectA.selectedIndex = 2; // older
+        selectB.selectedIndex = 1; // newer
+      }
+    }
+
+    function renderHistoryTable(scans) {
+      const tbody = document.getElementById('history-table-tbody');
+      tbody.innerHTML = '';
+
+      if (scans.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:24px;">No past scans recorded yet. Complete a scan to see timeline entries.</td></tr>';
+        return;
+      }
+
+      scans.forEach(s => {
+        const tr = document.createElement('tr');
+        const dateStr = new Date(s.timestamp).toLocaleString();
+        const engines = (s.sources_used || []).join(', ');
+
+        tr.innerHTML = `
+          <td><span style="font-family:var(--font-mono); font-size:12px; color:var(--muted);">${dateStr}</span></td>
+          <td><strong>${s.domain}</strong></td>
+          <td><span class="hud-target-text" style="font-size:13px;">${s.result_count}</span></td>
+          <td><span style="font-size:11.5px; color:var(--text-dim);">${engines || 'standard'}</span></td>
+          <td>
+            <a href="/api/results.html?job=${s.id}" class="action-btn" download style="font-size:11px; padding:4px 8px;" title="Export HTML Report">HTML</a>
+            <a href="/api/results.csv?job=${s.id}" class="action-btn" download style="font-size:11px; padding:4px 8px;">CSV</a>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function computeScanDiff() {
+      const idA = document.getElementById('diff-select-a').value;
+      const idB = document.getElementById('diff-select-b').value;
+
+      if (!idA || !idB) {
+        alert('Please select both a baseline and a comparison scan.');
+        return;
+      }
+      if (idA === idB) {
+        alert('Please choose two different scans to compare differences.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/history/diff?scan_a=${idA}&scan_b=${idB}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to calculate diff');
+
+        const diffBox = document.getElementById('diff-output-box');
+        diffBox.classList.remove('hidden');
+
+        document.getElementById('diff-count-added').textContent = `+${data.counts.added}`;
+        document.getElementById('diff-count-removed').textContent = `-${data.counts.removed}`;
+        document.getElementById('diff-count-unchanged').textContent = data.counts.unchanged;
+
+        // Populate Added
+        const addedList = document.getElementById('diff-added-list');
+        addedList.innerHTML = '';
+        if (data.added.length === 0) {
+          addedList.innerHTML = '<div class="list-empty">No new subdomains appeared.</div>';
+        } else {
+          data.added.forEach(sub => {
+            const row = document.createElement('div');
+            row.className = 'diff-row diff-row-added';
+            row.innerHTML = `<span class="diff-sign">+</span> <span class="diff-name">${sub}</span>`;
+            addedList.appendChild(row);
+          });
+        }
+
+        // Populate Removed
+        const removedList = document.getElementById('diff-removed-list');
+        removedList.innerHTML = '';
+        if (data.removed.length === 0) {
+          removedList.innerHTML = '<div class="list-empty">No decommissioned subdomains detected.</div>';
+        } else {
+          data.removed.forEach(sub => {
+            const row = document.createElement('div');
+            row.className = 'diff-row diff-row-removed';
+            row.innerHTML = `<span class="diff-sign">-</span> <span class="diff-name">${sub}</span>`;
+            removedList.appendChild(row);
+          });
+        }
+
+        diffBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (err) {
+        alert('Diff Error: ' + err.message);
+      }
+    }
+
+    /* ==========================================================================
+       VIEW 4: LIVE HTTP / SERVICE PROBER CONTROLLER (Strictly Decoupled)
+       ========================================================================== */
+    function updateProberCount() {
+      const val = document.getElementById('prober-hosts').value;
+      const lines = val.split('\n').map(l => l.trim()).filter(Boolean);
+      document.getElementById('prober-count-badge').textContent = `${lines.length} hosts`;
+    }
+
+    function sendDiscoveredToProber() {
+      if (currentResults.length === 0) {
+        alert('No subdomains available to probe yet. Run a scan first.');
+        return;
+      }
+      const hostnames = currentResults.map(r => r.subdomain).join('\n');
+      document.getElementById('prober-hosts').value = hostnames;
+      updateProberCount();
+      switchPlatformTab('prober');
+    }
+
+    function importFromCurrentScan() {
+      sendDiscoveredToProber();
+    }
+
+    async function startLiveProbe() {
+      const val = document.getElementById('prober-hosts').value;
+      const hosts = val.split('\n').map(l => l.trim()).filter(Boolean);
+      if (hosts.length === 0) {
+        alert('Please enter or import at least one hostname to probe.');
+        return;
+      }
+
+      const probeBtn = document.getElementById('probe-start-btn');
+      const metricsBox = document.getElementById('prober-metrics');
+      const resultsBox = document.getElementById('prober-results-box');
+      const tbody = document.getElementById('prober-tbody');
+
+      probeBtn.disabled = true;
+      probeBtn.innerHTML = '<span>⏳ Probing HTTP Services...</span>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--accent-cyan); padding:24px;">Probing live HTTP/HTTPS status across endpoints...</td></tr>';
+      metricsBox.classList.remove('hidden');
+      resultsBox.classList.remove('hidden');
+
+      try {
+        const res = await fetch('/api/probe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hosts: hosts,
+            timeout: 4.0,
+            concurrency: 25,
+            selected_resolver: document.getElementById('prober-resolver-target') ? document.getElementById('prober-resolver-target').value : 'all'
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Prober execution failed');
+
+        currentProberResults = data.results || [];
+        updateProberMetrics(currentProberResults);
+        renderProberResults(currentProberResults);
+      } catch (err) {
+        alert('Probe Error: ' + err.message);
+      } finally {
+        probeBtn.disabled = false;
+        probeBtn.innerHTML = '<span>🌐 Probe Live Status</span>';
+      }
+    }
+
+    function updateProberMetrics(results) {
+      let live200 = 0, redirects = 0, auth403 = 0, dead = 0;
+      results.forEach(r => {
+        if (r.status_code >= 200 && r.status_code < 300) live200++;
+        else if (r.status_code >= 300 && r.status_code < 400) redirects++;
+        else if (r.status_code >= 400 && r.status_code < 500) auth403++;
+        else dead++;
+      });
+
+      document.getElementById('metric-total-probed').textContent = results.length;
+      document.getElementById('metric-live-200').textContent = live200;
+      document.getElementById('metric-redirects').textContent = redirects;
+      document.getElementById('metric-auth-403').textContent = auth403;
+      document.getElementById('metric-dead').textContent = dead;
+    }
+
+    function renderProberResults(results) {
+      const tbody = document.getElementById('prober-tbody');
+      tbody.innerHTML = '';
+
+      if (results.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:24px;">No prober results to display.</td></tr>';
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      results.forEach(r => {
+        const tr = document.createElement('tr');
+
+        // Status badge
+        let badgeClass = 'badge-dns-dead';
+        let statusLabel = 'DEAD (DNS)';
+        if (r.status_code >= 200 && r.status_code < 300) {
+          badgeClass = 'badge-conf-high';
+          statusLabel = `${r.status_code} OK`;
+        } else if (r.status_code >= 300 && r.status_code < 400) {
+          badgeClass = 'badge-subfinder';
+          statusLabel = `${r.status_code} Redirect`;
+        } else if (r.status_code >= 400 && r.status_code < 500) {
+          badgeClass = 'badge-hackertarget';
+          statusLabel = `${r.status_code} Auth/Client`;
+        } else if (r.status_code >= 500) {
+          badgeClass = 'badge-crtsh';
+          statusLabel = `${r.status_code} Error`;
+        } else if (r.dns_status === 'resolved') {
+          badgeClass = 'badge-subfinder';
+          statusLabel = 'PORT CLOSED';
+        }
+
+        const titleText = r.title ? r.title : `<span style="color:var(--muted); font-style:italic;">None</span>`;
+        const serverText = r.server ? r.server : `<span style="color:var(--muted); font-style:italic;">Hidden</span>`;
+        const latencyText = r.response_time_ms ? `${r.response_time_ms} ms` : '-';
+        const targetUrl = r.url || `https://${r.host}`;
+
+        tr.innerHTML = `
+          <td><strong style="font-family:var(--font-mono); font-size:13px;">${r.host}</strong></td>
+          <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
+          <td style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${r.title || ''}">${titleText}</td>
+          <td><span style="font-size:12px; color:var(--text-dim);">${serverText}</span></td>
+          <td><span style="font-family:var(--font-mono); font-size:12px; color:var(--accent-cyan);">${latencyText}</span></td>
+          <td>
+            ${r.status_code ? `<a href="${targetUrl}" target="_blank" rel="noopener noreferrer" class="action-btn" style="font-size:11px; padding:3px 8px;">Visit ↗</a>` : '-'}
+          </td>
+        `;
+        fragment.appendChild(tr);
+      });
+      tbody.appendChild(fragment);
+    }
+
+    function filterProberResults() {
+      const q = document.getElementById('prober-filter-input').value.trim().toLowerCase();
+      if (!q) {
+        renderProberResults(currentProberResults);
+        return;
+      }
+      const filtered = currentProberResults.filter(r => {
+        return (r.host && r.host.toLowerCase().includes(q)) ||
+               (r.title && r.title.toLowerCase().includes(q)) ||
+               (r.server && r.server.toLowerCase().includes(q)) ||
+               (r.status_code && r.status_code.toString().includes(q));
+      });
+      renderProberResults(filtered);
+    }
+
+    async function copyLiveHosts() {
+      const live = currentProberResults.filter(r => r.status_code >= 200 && r.status_code < 400).map(r => r.host);
+      if (live.length === 0) {
+        alert('No live hosts to copy.');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(live.join('\n'));
+        alert(`Copied ${live.length} live hosts to clipboard!`);
+      } catch (e) {
+        console.error('Copy failed', e);
+      }
+    }
+
+    /* ==========================================================================
+       VIEW 5: DNS ASSET INTEGRITY & DANGLING CNAME AUDITOR CONTROLLER
+       ========================================================================== */
+    let currentAuditorResults = [];
+
+    function updateAuditorCount() {
+      const val = document.getElementById('auditor-hosts').value;
+      const lines = val.split('\n').map(l => l.trim()).filter(Boolean);
+      document.getElementById('auditor-count-badge').textContent = `${lines.length} hosts`;
+    }
+
+    function sendDiscoveredToAuditor() {
+      if (currentResults.length === 0) {
+        alert('No subdomains available yet. Run a recon scan first.');
+        return;
+      }
+      const hostnames = currentResults.map(r => r.subdomain).join('\n');
+      document.getElementById('auditor-hosts').value = hostnames;
+      updateAuditorCount();
+      switchPlatformTab('auditor');
+    }
+
+    function importCurrentScanToAuditor() {
+      sendDiscoveredToAuditor();
+    }
+
+    async function startCnameAudit() {
+      const val = document.getElementById('auditor-hosts').value;
+      const hosts = val.split('\n').map(l => l.trim()).filter(Boolean);
+      if (hosts.length === 0) {
+        alert('Please enter or import at least one hostname to audit.');
+        return;
+      }
+
+      const auditBtn = document.getElementById('audit-start-btn');
+      const metricsBox = document.getElementById('auditor-metrics');
+      const resultsBox = document.getElementById('auditor-results-box');
+      const tbody = document.getElementById('auditor-tbody');
+
+      auditBtn.disabled = true;
+      auditBtn.innerHTML = '<span>⏳ Resolving CNAME Aliases & Signatures...</span>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--accent-cyan); padding:24px;">Auditing DNS CNAME pointers against cloud service signatures...</td></tr>';
+      metricsBox.classList.remove('hidden');
+      resultsBox.classList.remove('hidden');
+
+      try {
+        const res = await fetch('/api/audit/cname', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hosts: hosts })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Audit execution failed');
+
+        currentAuditorResults = data.results || [];
+        updateAuditorMetrics(currentAuditorResults);
+        renderAuditorResults(currentAuditorResults);
+      } catch (err) {
+        alert('Audit Error: ' + err.message);
+      } finally {
+        auditBtn.disabled = false;
+        auditBtn.innerHTML = '<span>🛡️ Run DNS Integrity Audit</span>';
+      }
+    }
+
+    function updateAuditorMetrics(results) {
+      let dangling = 0, cnames = 0, safe = 0;
+      results.forEach(r => {
+        if (r.status === 'dangling') dangling++;
+        else if (r.status === 'info') cnames++;
+        else safe++;
+      });
+
+      document.getElementById('auditor-metric-total').textContent = results.length;
+      document.getElementById('auditor-metric-dangling').textContent = dangling;
+      document.getElementById('auditor-metric-cnames').textContent = cnames;
+      document.getElementById('auditor-metric-safe').textContent = safe;
+    }
+
+    function renderAuditorResults(results) {
+      const tbody = document.getElementById('auditor-tbody');
+      tbody.innerHTML = '';
+
+      if (results.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:24px;">No audit findings to display.</td></tr>';
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      results.forEach(r => {
+        const tr = document.createElement('tr');
+
+        let statusBadge = '<span class="badge badge-conf-high">Direct Record</span>';
+        if (r.status === 'dangling') {
+          statusBadge = '<span class="badge badge-crtsh" style="background:rgba(239, 68, 68, 0.2); color:#f87171; border:1px solid rgba(239, 68, 68, 0.45); font-weight:800;">🔴 DANGLING CNAME</span>';
+        } else if (r.status === 'info') {
+          statusBadge = '<span class="badge badge-src" style="background:rgba(245, 158, 11, 0.15); color:#fbbf24; border:1px solid rgba(245, 158, 11, 0.35);">🟡 ACTIVE CNAME</span>';
+        }
+
+        tr.innerHTML = `
+          <td><strong style="font-family:var(--font-mono); font-size:13px;">${r.host}</strong></td>
+          <td><span style="font-family:var(--font-mono); font-size:12px; color:var(--accent-cyan);">${r.cname}</span></td>
+          <td><span class="badge badge-subfinder">${r.service}</span></td>
+          <td>${statusBadge}</td>
+          <td style="font-size:12px; color:var(--text-dim); max-width:240px;">${r.evidence || '—'}</td>
+          <td style="font-size:12px; color:#94a3b8; max-width:260px;">${r.remediation || 'None'}</td>
+        `;
+        fragment.appendChild(tr);
+      });
+      tbody.appendChild(fragment);
+    }
+
+    function filterAuditorResults() {
+      const q = document.getElementById('auditor-filter-input').value.trim().toLowerCase();
+      if (!q) {
+        renderAuditorResults(currentAuditorResults);
+        return;
+      }
+      const filtered = currentAuditorResults.filter(r => {
+        return (r.host && r.host.toLowerCase().includes(q)) ||
+               (r.cname && r.cname.toLowerCase().includes(q)) ||
+               (r.service && r.service.toLowerCase().includes(q)) ||
+               (r.status && r.status.toLowerCase().includes(q));
+      });
+      renderAuditorResults(filtered);
+    }
+
+    async function copyDanglingHosts() {
+      const dangling = currentAuditorResults.filter(r => r.status === 'dangling').map(r => `${r.host} -> ${r.cname}`);
+      if (dangling.length === 0) {
+        alert('No dangling pointer hosts detected to copy.');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(dangling.join('\n'));
+        alert(`Copied ${dangling.length} dangling CNAME targets to clipboard!`);
+      } catch (e) {
+        console.error('Copy failed', e);
+      }
+    }
+
+    /* ==========================================================================
+       FRONT-PAGE CLEAN DRAWER & TELEMETRY CONTROLLERS
+       ========================================================================== */
+    function toggleEngineDrawer() {
+      const drawer = document.getElementById('engine-drawer');
+      const arrow = document.getElementById('engine-drawer-arrow');
+      if (!drawer) return;
+      const isHidden = drawer.classList.contains('hidden');
+      if (isHidden) {
+        drawer.classList.remove('hidden');
+        if (arrow) arrow.textContent = '▲';
+      } else {
+        drawer.classList.add('hidden');
+        if (arrow) arrow.textContent = '▼';
+      }
+    }
+
+    function toggleTerminalBox() {
+      const box = document.getElementById('terminal-box');
+      if (!box) return;
+      box.classList.toggle('hidden');
+    }
+
+    function updateQuickResolverLabel() {
+      const select = document.getElementById('dns-resolver-target');
+      const lbl = document.getElementById('quick-resolver-label');
+      if (select && lbl) {
+        lbl.textContent = select.options[select.selectedIndex].text.split('(')[0].trim();
+      }
+    }
+
+    /* ==========================================================================
+       VIEW 6: SUBDOMAIN PERMUTATION ENGINE CONTROLLERS
+       ========================================================================== */
+    let currentPermResults = [];
+    let permCandidates = [];
+
+    function populatePermSeedsFromRecon() {
+      const seedsArea = document.getElementById('perm-seeds');
+      const permDomain = document.getElementById('perm-domain');
+      const mainDomain = document.getElementById('domain').value.trim();
+      if (mainDomain && !permDomain.value) {
+        permDomain.value = mainDomain;
+      }
+      if (currentResults && currentResults.length > 0) {
+        const list = currentResults.map(r => r.subdomain || r.host).filter(Boolean);
+        seedsArea.value = list.slice(0, 50).join('\n');
+      } else {
+        alert('No discovered subdomains found in Single Recon yet. Enter subdomains manually.');
+      }
+    }
+
+    function sendDiscoveredToPermutations() {
+      const domain = document.getElementById('domain').value.trim();
+      if (domain) {
+        document.getElementById('perm-domain').value = domain;
+      }
+      if (currentResults && currentResults.length > 0) {
+        const list = currentResults.map(r => r.subdomain || r.host).filter(Boolean);
+        document.getElementById('perm-seeds').value = list.slice(0, 50).join('\n');
+      }
+      switchPlatformTab('permutations');
+    }
+
+    async function previewPermutationCandidates() {
+      const domain = document.getElementById('perm-domain').value.trim();
+      if (!domain) {
+        alert('Please enter a target root domain (e.g. example.com).');
+        return;
+      }
+      const seedsRaw = document.getElementById('perm-seeds').value.trim();
+      const seeds = seedsRaw ? seedsRaw.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+      const btn = document.getElementById('perm-preview-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳ Generating Candidates...</span>';
+
+      try {
+        const res = await fetch('/api/permutations/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: domain, seeds: seeds, limit: 300 })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        permCandidates = data.candidates || [];
+        document.getElementById('perm-results-box').classList.remove('hidden');
+        document.getElementById('perm-metric-live').textContent = '0 (Dry Run)';
+        document.getElementById('perm-metric-candidates').textContent = data.total_candidates;
+        document.getElementById('perm-metric-time').textContent = '0.01s';
+
+        const tbody = document.getElementById('perm-tbody');
+        tbody.innerHTML = '';
+        const frag = document.createDocumentFragment();
+        permCandidates.forEach(c => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong style="font-family:var(--font-mono); font-size:13px; color:#ffffff;">${c.candidate}</strong></td>
+            <td><span class="badge badge-cached">Candidate (Dry Run)</span></td>
+            <td><span style="color:var(--muted); font-size:12px;">Click 'Run Scan' to resolve</span></td>
+            <td><span style="color:var(--muted); font-size:12px;">—</span></td>
+            <td><span class="badge badge-src" style="font-size:11px;">${c.rule}</span></td>
+          `;
+          frag.appendChild(tr);
+        });
+        tbody.appendChild(frag);
+      } catch (err) {
+        alert('Preview Error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>👁️ Preview Candidates (Dry Run)</span>';
+      }
+    }
+
+    async function startPermutationScan() {
+      const domain = document.getElementById('perm-domain').value.trim();
+      if (!domain) {
+        alert('Please enter a target root domain (e.g. example.com).');
+        return;
+      }
+      const seedsRaw = document.getElementById('perm-seeds').value.trim();
+      const seeds = seedsRaw ? seedsRaw.split('\n').map(s => s.trim()).filter(Boolean) : [];
+      const resolver = document.getElementById('perm-resolver').value;
+
+      const btn = document.getElementById('perm-scan-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span>⚡ Resolving Mutations...</span>';
+
+      try {
+        const res = await fetch('/api/permutations/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            domain: domain,
+            seeds: seeds,
+            limit: 250,
+            dns_resolver: resolver
+          })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        currentPermResults = data.results || [];
+        document.getElementById('perm-results-box').classList.remove('hidden');
+        document.getElementById('perm-metric-live').textContent = data.total_live;
+        document.getElementById('perm-metric-candidates').textContent = data.total_candidates;
+        document.getElementById('perm-metric-time').textContent = `${data.duration}s`;
+
+        renderPermutationResults(currentPermResults);
+      } catch (err) {
+        alert('Permutation Scan Error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>🚀 Run Permutation Scan</span>';
+      }
+    }
+
+    function renderPermutationResults(results) {
+      const tbody = document.getElementById('perm-tbody');
+      tbody.innerHTML = '';
+      if (results.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:24px;">No mutation results to display.</td></tr>';
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+      results.forEach(r => {
+        const tr = document.createElement('tr');
+        let statusBadge = r.alive ? '<span class="badge badge-dns-live">🟢 LIVE</span>' : '<span class="badge badge-dns-dead">🔴 DEAD</span>';
+        let ipsStr = r.ips && r.ips.length ? r.ips.slice(0, 3).map(ip => `<span class="badge badge-ip">${ip}</span>`).join(' ') : '<span style="color:var(--muted); font-size:12px;">None</span>';
+        let resolverStr = r.resolver && r.resolver !== 'None' ? `<span class="badge badge-hackertarget">${r.resolver}</span>` : '<span style="color:var(--muted); font-size:12px;">—</span>';
+
+        tr.innerHTML = `
+          <td><strong style="font-family:var(--font-mono); font-size:13px; color:#ffffff;">${r.host}</strong></td>
+          <td>${statusBadge}</td>
+          <td>${ipsStr}</td>
+          <td>${resolverStr}</td>
+          <td><span class="badge badge-src" style="font-size:11px;">${r.rule}</span></td>
+        `;
+        frag.appendChild(tr);
+      });
+      tbody.appendChild(frag);
+    }
+
+    function filterPermutationResults() {
+      const q = document.getElementById('perm-filter-input').value.trim().toLowerCase();
+      if (!q) {
+        renderPermutationResults(currentPermResults);
+        return;
+      }
+      const filtered = currentPermResults.filter(r => (r.host && r.host.toLowerCase().includes(q)) || (r.rule && r.rule.toLowerCase().includes(q)));
+      renderPermutationResults(filtered);
+    }
+
+    async function copyLivePermutations() {
+      const live = currentPermResults.filter(r => r.alive).map(r => r.host);
+      if (live.length === 0) {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(live.join('\n'));
+        const btn = document.querySelector('button[onclick="copyLivePermutations()"]');
+        if (btn) {
+          const oldTxt = btn.textContent;
+          btn.textContent = `✓ Copied (${live.length})`;
+          btn.classList.add('copied-flash');
+          setTimeout(() => {
+            btn.textContent = oldTxt;
+            btn.classList.remove('copied-flash');
+          }, 1800);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    /* ==========================================================================
+       VIEW 7: HISTORICAL ARCHIVE & WAYBACK URL MINER CONTROLLERS
+       ========================================================================== */
+    let currentArchiveData = null;
+    let currentArchiveCategory = 'sensitive';
+
+    function sendDomainToArchiveMiner() {
+      const domain = document.getElementById('domain').value.trim();
+      if (domain) {
+        document.getElementById('archive-domain-input').value = domain;
+      }
+      switchPlatformTab('archive');
+    }
+
+    async function startArchiveMining() {
+      const domain = document.getElementById('archive-domain-input').value.trim();
+      if (!domain) {
+        alert('Please enter a target domain (e.g. example.com).');
+        return;
+      }
+
+      const btn = document.getElementById('archive-mine-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳ Mining Wayback & AlienVault Archives...</span>';
+
+      try {
+        const res = await fetch('/api/archive/mine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: domain, limit: 2500 })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        currentArchiveData = data;
+        document.getElementById('archive-results-box').classList.remove('hidden');
+        document.getElementById('archive-metric-total').textContent = data.total_urls;
+        document.getElementById('archive-metric-subs').textContent = data.total_subdomains;
+        document.getElementById('archive-metric-sensitive').textContent = data.sensitive_files_count;
+        document.getElementById('archive-metric-params').textContent = data.parameter_urls_count;
+
+        document.getElementById('count-cat-sensitive').textContent = data.sensitive_files_count;
+        document.getElementById('count-cat-params').textContent = data.parameter_urls_count;
+        document.getElementById('count-cat-subs').textContent = data.total_subdomains;
+        document.getElementById('count-cat-api').textContent = data.api_endpoints_count;
+
+        switchArchiveCategory('sensitive');
+      } catch (err) {
+        alert('Archive Mining Error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>🔍 Mine Historical Archives</span>';
+      }
+    }
+
+    function switchArchiveCategory(cat) {
+      currentArchiveCategory = cat;
+      ['sensitive', 'params', 'subs', 'api', 'all'].forEach(c => {
+        const tab = document.getElementById(`tab-archive-${c}`);
+        if (tab) tab.classList.toggle('active', c === cat);
+      });
+
+      renderArchiveTable();
+    }
+
+    function renderArchiveTable(filterQuery = '') {
+      if (!currentArchiveData) return;
+      const thead = document.getElementById('archive-thead');
+      const tbody = document.getElementById('archive-tbody');
+      tbody.innerHTML = '';
+      const q = (filterQuery || '').toLowerCase();
+
+      if (currentArchiveCategory === 'sensitive') {
+        thead.innerHTML = '<tr><th>Sensitive URL / Leak Path</th><th>Host</th><th>File / Extension</th><th>Category</th><th>Action</th></tr>';
+        let items = currentArchiveData.sensitive_files || [];
+        if (q) items = items.filter(i => i.url.toLowerCase().includes(q) || i.path.toLowerCase().includes(q));
+        if (items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:24px;">No sensitive files detected in archives.</td></tr>';
+          return;
+        }
+        const frag = document.createDocumentFragment();
+        items.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="max-width:360px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><strong style="font-family:var(--font-mono); font-size:12.5px; color:#ff8591;">${item.url}</strong></td>
+            <td><span style="font-family:var(--font-mono); font-size:12px;">${item.host}</span></td>
+            <td><span class="badge badge-dns-dead" style="font-size:11px;">${item.path}</span></td>
+            <td><span class="badge badge-crtsh">${item.category}</span></td>
+            <td><a href="${item.url}" target="_blank" rel="noopener noreferrer" class="action-btn" style="font-size:11px; padding:2px 7px;">Open ↗</a></td>
+          `;
+          frag.appendChild(tr);
+        });
+        tbody.appendChild(frag);
+      } else if (currentArchiveCategory === 'params') {
+        thead.innerHTML = '<tr><th>URL with Query Parameters</th><th>Host</th><th>Interesting Parameters</th><th>Action</th></tr>';
+        let items = currentArchiveData.parameter_urls || [];
+        if (q) items = items.filter(i => i.url.toLowerCase().includes(q));
+        if (items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--muted); padding:24px;">No parameter URLs detected in archives.</td></tr>';
+          return;
+        }
+        const frag = document.createDocumentFragment();
+        items.forEach(item => {
+          const tr = document.createElement('tr');
+          const paramBadges = item.params.map(p => `<span class="badge badge-active">${p}</span>`).join(' ');
+          tr.innerHTML = `
+            <td style="max-width:380px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><span style="font-family:var(--font-mono); font-size:12.5px; color:#fbbf24;">${item.url}</span></td>
+            <td><span style="font-family:var(--font-mono); font-size:12px;">${item.host}</span></td>
+            <td>${paramBadges}</td>
+            <td><a href="${item.url}" target="_blank" rel="noopener noreferrer" class="action-btn" style="font-size:11px; padding:2px 7px;">Open ↗</a></td>
+          `;
+          frag.appendChild(tr);
+        });
+        tbody.appendChild(frag);
+      } else if (currentArchiveCategory === 'subs') {
+        thead.innerHTML = '<tr><th>Historical Subdomain</th><th>Root Domain</th><th>Action</th></tr>';
+        let items = currentArchiveData.historical_subdomains || [];
+        if (q) items = items.filter(s => s.toLowerCase().includes(q));
+        if (items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--muted); padding:24px;">No historical subdomains found.</td></tr>';
+          return;
+        }
+        const frag = document.createDocumentFragment();
+        items.forEach(sub => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong style="font-family:var(--font-mono); font-size:13px; color:#ffffff;">${sub}</strong></td>
+            <td><span class="badge badge-src">${currentArchiveData.domain}</span></td>
+            <td><button type="button" class="term-btn" onclick="navigator.clipboard.writeText('${sub}')">Copy</button></td>
+          `;
+          frag.appendChild(tr);
+        });
+        tbody.appendChild(frag);
+      } else if (currentArchiveCategory === 'api') {
+        thead.innerHTML = '<tr><th>API Route / Endpoint</th><th>Action</th></tr>';
+        let items = currentArchiveData.api_endpoints || [];
+        if (q) items = items.filter(u => u.toLowerCase().includes(q));
+        if (items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:var(--muted); padding:24px;">No API endpoints found.</td></tr>';
+          return;
+        }
+        const frag = document.createDocumentFragment();
+        items.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="max-width:520px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><span style="font-family:var(--font-mono); font-size:12.5px; color:#38bdf8;">${u}</span></td>
+            <td><a href="${u}" target="_blank" rel="noopener noreferrer" class="action-btn" style="font-size:11px; padding:2px 7px;">Open ↗</a></td>
+          `;
+          frag.appendChild(tr);
+        });
+        tbody.appendChild(frag);
+      } else {
+        // All URLs
+        thead.innerHTML = '<tr><th>Archived URL</th><th>Action</th></tr>';
+        let items = currentArchiveData.sample_urls || [];
+        if (q) items = items.filter(u => u.toLowerCase().includes(q));
+        const frag = document.createDocumentFragment();
+        items.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="max-width:550px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><span style="font-family:var(--font-mono); font-size:12.5px; color:#cbd5e1;">${u}</span></td>
+            <td><a href="${u}" target="_blank" rel="noopener noreferrer" class="action-btn" style="font-size:11px; padding:2px 7px;">Open ↗</a></td>
+          `;
+          frag.appendChild(tr);
+        });
+        tbody.appendChild(frag);
+      }
+    }
+
+    function filterArchiveResults() {
+      const q = document.getElementById('archive-filter-input').value.trim();
+      renderArchiveTable(q);
+    }
+
+    async function copyCurrentArchiveCategory() {
+      if (!currentArchiveData) return;
+      let items = [];
+      if (currentArchiveCategory === 'sensitive') {
+        items = (currentArchiveData.sensitive_files || []).map(i => i.url);
+      } else if (currentArchiveCategory === 'params') {
+        items = (currentArchiveData.parameter_urls || []).map(i => i.url);
+      } else if (currentArchiveCategory === 'subs') {
+        items = currentArchiveData.historical_subdomains || [];
+      } else if (currentArchiveCategory === 'api') {
+        items = currentArchiveData.api_endpoints || [];
+      } else {
+        items = currentArchiveData.sample_urls || [];
+      }
+      if (items.length === 0) {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(items.join('\n'));
+        const btn = document.querySelector('button[onclick="copyCurrentArchiveCategory()"]');
+        if (btn) {
+          const oldTxt = btn.textContent;
+          btn.textContent = `✓ Copied (${items.length})`;
+          btn.classList.add('copied-flash');
+          setTimeout(() => {
+            btn.textContent = oldTxt;
+            btn.classList.remove('copied-flash');
+          }, 1800);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Dynamic Polymorphic Interactive Light Tracking
+    let rafActive = false;
+    document.addEventListener('mousemove', (e) => {
+      if (rafActive) return;
+      rafActive = true;
+      requestAnimationFrame(() => {
+        const cards = document.querySelectorAll('.card');
+        for (let i = 0; i < cards.length; i++) {
+          const rect = cards[i].getBoundingClientRect();
+          if (
+            e.clientX >= rect.left - 60 &&
+            e.clientX <= rect.right + 60 &&
+            e.clientY >= rect.top - 60 &&
+            e.clientY <= rect.bottom + 60
+          ) {
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            cards[i].style.setProperty('--mouse-x', `${x}px`);
+            cards[i].style.setProperty('--mouse-y', `${y}px`);
+          }
+        }
+        rafActive = false;
+      });
+    }, { passive: true });
+  </script>
+</body>
+</html>

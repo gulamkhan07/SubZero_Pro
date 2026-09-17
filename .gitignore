@@ -1,0 +1,50 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments & Packages
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.uv/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+
+# Project Runtime State & Databases
+.runtime/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Large Pre-Compiled Binaries (Users install via install_tools.py or package managers)
+bin/*.exe
+bin/subfinder
+bin/amass
+
+# Exported User Files & Scratch Archives
+*.zip
+*.csv
+*.txt
+*.html
+!templates/
+!templates/*.html
+!wordlists/*.txt

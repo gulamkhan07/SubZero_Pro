@@ -1,0 +1,11 @@
+services:
+  subdomain-finder-pro:
+    build: .
+    container_name: subdomain_finder_pro
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./history_data:/app/.runtime
+    environment:
+      - FLASK_ENV=production
