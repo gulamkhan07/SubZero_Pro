@@ -249,7 +249,7 @@ def api_info():
         'author': 'Gulam Khan',
         'role': 'Founder & Lead Architect',
         'license': 'MIT',
-        'repository': 'https://github.com/haafizkhushbuddin1-blip/subdomain_finder_pro',
+        'repository': 'https://github.com/gulamkhan07/subdomain_finder_pro',
         'status': 'online',
         'description': 'Enterprise-Grade OSINT Reconnaissance, Multi-Resolver DNS Integrity, Permutations Engine, Wayback URL Miner & Cloud Asset Auditor.'
     })

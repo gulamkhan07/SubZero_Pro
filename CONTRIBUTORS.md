@@ -6,7 +6,7 @@ A heartfelt thank you to everyone who helps make **SubZero** better, faster, and
 
 ## 👑 Founder & Lead Architect
 
-- **[Gulam Khan](https://github.com/haafizkhushbuddin1-blip)** — *Creator, Lead Architect, and Maintainer*
+- **[Gulam Khan](https://github.com/gulamkhan07)** — *Creator, Lead Architect, and Maintainer*
   - Original architectural design of SubZero.
   - Multi-Resolver DNS Integrity Engine, Permutation Engine, and Wayback Miner.
   - Performance calibrations for low-spec systems and zero-paint canvas telemetry.

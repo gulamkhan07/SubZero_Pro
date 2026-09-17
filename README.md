@@ -23,7 +23,7 @@
       <h3>Gulam Khan</h3>
       <p><b>Founder & Lead Architect</b> of SubZero</p>
       <p>
-        <a href="https://github.com/haafizkhushbuddin1-blip"><img src="https://img.shields.io/badge/GitHub-Profile-181717?style=flat&logo=github" alt="GitHub"></a>
+        <a href="https://github.com/gulamkhan07"><img src="https://img.shields.io/badge/GitHub-Profile-181717?style=flat&logo=github" alt="GitHub"></a>
         <a href="https://linkedin.com/"><img src="https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=flat&logo=linkedin" alt="LinkedIn"></a>
       </p>
       <p><i>Passionate about high-performance cybersecurity tooling, passive reconnaissance, and decentralized OSINT engineering.</i></p>
@@ -152,7 +152,7 @@ Access the dashboard at `http://localhost:5000`.
 ### Option 4: Manual Python Installation
 ```bash
 # 1. Clone the repository
-git clone https://github.com/haafizkhushbuddin1-blip/subdomain_finder_pro.git
+git clone https://github.com/gulamkhan07/subdomain_finder_pro.git
 cd subdomain_finder_pro
 
 # 2. Install dependencies

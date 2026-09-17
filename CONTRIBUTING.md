@@ -13,7 +13,7 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) and [Security Policy](SECU
 # Clone your fork
 git clone https://github.com/<your-username>/subdomain_finder_pro.git
 cd subdomain_finder_pro
-git remote add upstream https://github.com/haafizkhushbuddin1-blip/subdomain_finder_pro.git
+git remote add upstream https://github.com/gulamkhan07/subdomain_finder_pro.git
 git checkout -b feature/my-new-feature
 ```
 
