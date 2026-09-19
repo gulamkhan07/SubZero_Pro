@@ -39,7 +39,7 @@ SubZero is a modular, decoupled cybersecurity reconnaissance platform featuring 
 
 ```
                       ┌─────────────────────────────────┐
-                      │    SubZero (UI)                 │
+                      │    SubZero (Web UI & CLI)       │
                       └────────────────┬────────────────┘
                                        │
          ┌───────────────┬─────────────┼─────────────┬───────────────┐
