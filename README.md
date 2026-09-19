@@ -11,7 +11,8 @@
 
 > **Enterprise-Grade OSINT Reconnaissance, Multi-Resolver DNS Integrity, Permutations Engine, Wayback URL Miner & Cloud Asset Auditor.**  
 > **Designed & Developed by: Gulam Khan**  
-> **Version: 2.2.0 (High-Performance & Low-Spec PC Calibrated)**
+> **Version: 2.2.0 (High-Performance & Low-Spec PC Calibrated)**  
+> 📖 **[CLI Commands Reference & Cheat Sheet](COMMANDS.md)**
 
 ---
 
@@ -149,6 +150,7 @@ subzero/
 │   └── subdomains_20000.txt  # Deep 20,000 brute-force dictionary
 ├── app.py                    # Flask Web application & REST API server
 ├── cli.py                    # CLI runner entrypoint
+├── COMMANDS.md               # Complete CLI commands guide & cheat sheet
 ├── subzero.bat               # Windows CLI launcher (modular & auto-bootstrap)
 ├── subzero                   # Linux / macOS CLI executable launcher
 ├── run.bat                   # Windows Web UI server launcher
@@ -219,6 +221,8 @@ Open your browser at:
 ---
 
 ## 💻 Terminal CLI Interface (For Cybersecurity Professionals)
+
+> 📖 **Full Commands & Cheat Sheet Guide**: See [COMMANDS.md](COMMANDS.md) for step-by-step examples, bug bounty workflows, and tool exclusion tips.
 
 SubZero includes a dedicated, high-speed command-line interface designed for penetration testers, bug bounty hunters, and red teamers. It supports clean stdout piping (`-silent`), active DNS wordlist brute-forcing, multi-resolver validation, CNAME takeover audits, live HTTP probing, and JSON/CSV/TXT file exports.
 
