@@ -68,6 +68,46 @@ def throttle(provider: str, min_interval: float = 1.0):
 
 
 # ---------------------------------------------------------------------------
+# Per-provider error diagnostics tracking
+# ---------------------------------------------------------------------------
+_provider_last_errors: dict = {}
+_error_lock = threading.Lock()
+
+
+def get_provider_last_error(provider: str) -> str:
+    """Returns the most recent detailed failure reason recorded for a provider."""
+    with _error_lock:
+        return _provider_last_errors.get(provider, '')
+
+
+def set_provider_last_error(provider: str, error_msg: str):
+    """Sets the most recent failure reason recorded for a provider."""
+    with _error_lock:
+        _provider_last_errors[provider] = error_msg
+
+
+def _diagnose_exception(exc: Exception, timeout: float = 15.0) -> str:
+    """Translates raw python requests/socket exceptions into clear, actionable messages."""
+    msg = str(exc)
+    exc_type = type(exc).__name__
+
+    if isinstance(exc, requests.exceptions.SSLError) or 'SSLError' in exc_type:
+        return "SSL certificate verification failed (check corporate proxy / CA store)"
+    if isinstance(exc, (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.Timeout)):
+        return f"Connection timed out after {int(timeout)}s (high latency or firewall dropped packet)"
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        lower_msg = msg.lower()
+        if 'getaddrinfo failed' in lower_msg or 'nameresolutionerror' in lower_msg or 'dns' in lower_msg:
+            return "DNS name resolution failed (check internet connection / DNS resolver)"
+        if 'connection refused' in lower_msg:
+            return "Connection refused by remote host"
+        if 'connection reset' in lower_msg:
+            return "Connection reset by peer / firewall"
+        return "Network connection failed (unreachable host)"
+    return f"Request error ({exc_type}): {msg[:120]}"
+
+
+# ---------------------------------------------------------------------------
 # Retry with exponential backoff + jitter
 # ---------------------------------------------------------------------------
 
@@ -101,6 +141,8 @@ def retry_request(
         headers['User-Agent'] = random_user_agent()
 
     last_exc = None
+    last_diagnostic = ""
+
     for attempt in range(max_retries):
         throttle(provider, min_interval)
         try:
@@ -110,39 +152,90 @@ def retry_request(
                 resp = session.request(method, url, headers=headers, params=params, timeout=timeout)
 
             if resp.status_code == 200:
+                set_provider_last_error(provider, '')
                 return resp
 
             if resp.status_code == 429:
-                # Rate limited — back off aggressively
+                last_diagnostic = "API rate limit reached (HTTP 429 Too Many Requests)"
                 delay = min(base_delay * (2 ** attempt), max_delay)
                 jitter = random.uniform(0, delay * 0.3)
                 time.sleep(delay + jitter)
                 continue
 
             if resp.status_code in (500, 502, 503, 504):
+                last_diagnostic = f"Remote server temporarily unavailable (HTTP {resp.status_code})"
                 delay = min(base_delay * (2 ** attempt), max_delay)
                 jitter = random.uniform(0, delay * 0.3)
                 time.sleep(delay + jitter)
                 continue
 
             # Other status codes (301, 403, 404 etc) — return as-is, no retry
+            if resp.status_code == 403:
+                last_diagnostic = "Access forbidden / Cloudflare challenge (HTTP 403)"
+            elif resp.status_code == 404:
+                last_diagnostic = "Target resource not found (HTTP 404)"
+            else:
+                last_diagnostic = f"Remote returned HTTP {resp.status_code}"
+            set_provider_last_error(provider, last_diagnostic)
             return resp
 
-        except requests.Timeout:
-            last_exc = requests.Timeout(f'{provider} request timed out (attempt {attempt + 1})')
+        except requests.Timeout as exc:
+            last_exc = exc
+            last_diagnostic = _diagnose_exception(exc, timeout)
             delay = min(base_delay * (2 ** attempt), max_delay)
             time.sleep(delay + random.uniform(0, 1))
 
-        except requests.ConnectionError:
-            last_exc = requests.ConnectionError(f'{provider} connection failed (attempt {attempt + 1})')
+        except requests.ConnectionError as exc:
+            last_exc = exc
+            last_diagnostic = _diagnose_exception(exc, timeout)
             delay = min(base_delay * (2 ** attempt), max_delay)
             time.sleep(delay + random.uniform(0, 1))
 
         except requests.RequestException as exc:
             last_exc = exc
+            last_diagnostic = _diagnose_exception(exc, timeout)
             delay = min(base_delay * (2 ** attempt), max_delay)
             time.sleep(delay + random.uniform(0, 1))
+
+    if last_diagnostic:
+        set_provider_last_error(provider, last_diagnostic)
 
     if raise_on_failure and last_exc:
         raise last_exc
     return None
+
+
+# ---------------------------------------------------------------------------
+# Network Connectivity Pre-flight Diagnostic
+# ---------------------------------------------------------------------------
+
+def check_network_connectivity(test_endpoints=None, timeout: float = 3.5) -> dict:
+    """
+    Checks if this host has active internet connectivity and working DNS.
+    Tests reachability against resilient public endpoints.
+    """
+    if test_endpoints is None:
+        test_endpoints = [
+            ('Cloudflare Public DNS', 'https://1.1.1.1'),
+            ('Google Public DNS', 'https://8.8.8.8'),
+            ('Quad9 DNS', 'https://9.9.9.9'),
+        ]
+
+    session = get_session()
+    errors = []
+
+    for name, endpoint in test_endpoints:
+        try:
+            r = session.head(endpoint, timeout=timeout, headers={'User-Agent': random_user_agent()})
+            if r.status_code in (200, 301, 302, 400, 403, 405):
+                return {'online': True, 'tested_endpoint': name, 'status': 'connected'}
+        except Exception as exc:
+            errors.append(f"{name}: {_diagnose_exception(exc, timeout)}")
+
+    return {
+        'online': False,
+        'status': 'offline_or_blocked',
+        'errors': errors,
+        'advice': "Check your internet connection, WiFi, proxy settings, or firewall."
+    }
+

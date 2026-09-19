@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# SubZero CLI Fast Launcher for Linux / macOS
+# Developed by: Gulam Khan
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if command -v uv >/dev/null 2>&1; then
+    exec uv run --with "requests>=2.31,<3" --with "dnspython>=2.6,<3" python "$SCRIPT_DIR/cli.py" "$@"
+elif [ -f "$SCRIPT_DIR/.venv/bin/python" ]; then
+    exec "$SCRIPT_DIR/.venv/bin/python" "$SCRIPT_DIR/cli.py" "$@"
+elif command -v python3 >/dev/null 2>&1; then
+    exec python3 "$SCRIPT_DIR/cli.py" "$@"
+else
+    exec python "$SCRIPT_DIR/cli.py" "$@"
+fi

@@ -169,6 +169,71 @@ Open your browser at:
 
 ---
 
+## 💻 Terminal CLI Interface (For Cybersecurity Professionals)
+
+SubZero includes a dedicated, high-speed command-line interface designed for penetration testers, bug bounty hunters, and red teamers. It supports clean stdout piping (`-silent`), active DNS wordlist brute-forcing, multi-resolver validation, CNAME takeover audits, live HTTP probing, and JSON/CSV/TXT file exports.
+
+### Quick Launchers
+
+- **Windows**: `subzero.bat -d example.com -silent`
+- **Linux / macOS**: `./subzero -d example.com -silent`
+- **Universal Python**: `python cli.py -d example.com -silent`
+
+### Security Pipeline Examples
+
+```bash
+# 1. Silent enumeration piped directly into httpx and nuclei:
+subzero -d target.com -silent | httpx -silent -title -tech-detect -status-code
+
+# 2. Active DNS brute-force with 5,000-word wordlist, multi-resolver check, and plaintext export:
+subzero -d target.com -a -w 5000 -r --only-resolved -o live_subdomains.txt
+
+# 3. Target list scan with CNAME takeover auditing and IP intelligence:
+subzero -dL domains.txt -all --cname --ip-intel -oCSV attack_surface.csv
+
+# 4. Full security audit with HTTP probing, Wayback archive URLs, and structured JSON output:
+subzero -d target.com -r --probe --cname --archive -oJ full_recon.json
+
+# 5. Pipeline stdin input (pipe targets directly):
+cat roots.txt | subzero -silent | httpx -silent | nuclei -t cves/
+
+# 6. Pre-flight connectivity diagnostic:
+subzero --check-network
+```
+
+### CLI Command Flags & Options
+
+| Flag | Description |
+| :--- | :--- |
+| `-d, --domain <domain>` | Target root domain to enumerate (e.g. `example.com`) |
+| `-dL, -l, --list <file>` | Path to file containing target domains (one per line) |
+| `-s, --sources <s1,s2>` | Comma-separated list of passive sources to query (defaults to all fast passive tools) |
+| `-x, --exclude <tools>` | Exclude/remove specific tools by name (e.g. `-x subfinder,urlscan`) |
+| `--no-<tool>` | Directly skip any individual tool (e.g. `--no-subfinder`, `--no-urlscan`, `--no-crtsh`) |
+| `--amass` | Explicitly enable OWASP Amass (kept separate by default) |
+| `-all, --deep` | Enable deep, slow passive sources (`subfinder_all`, `amass`) |
+| `-ls, --list-sources` | Display table of all reconnaissance sources and installation status |
+| `-a, --active` | Enable high-speed active DNS wordlist brute-forcing |
+| `-w, --wordlist <size>` | Wordlist size (`100`, `1000`, `5000`, `20000`) or custom wordlist file |
+| `-t, --threads <int>` | Concurrency for active DNS scanning (default: `500`) |
+| `--permute` | Mutate discovered subdomains with permutation engine |
+| `-r, --resolve` | Resolve discovered subdomains across Tier-1 public multi-resolvers |
+| `--resolver <name>` | Specific resolver (`cloudflare`, `google`, `quad9`, `opendns`, `all`) |
+| `--only-resolved` | Filter output to strictly live/resolved subdomains |
+| `--cname` | Audit for dangling CNAME records (subdomain takeover) |
+| `--probe` | Probe HTTP/HTTPS status code, page title, and server headers |
+| `--ip-intel` | Classify IPs as Direct Origin server vs Cloudflare/CDN/WAF |
+| `--archive` | Mine historical URLs from Wayback Machine and AlienVault |
+| `-o, --output <file>` | Plaintext output file path (one subdomain per line) |
+| `-oJ, --json <file>` | Structured JSON report output file path |
+| `-oCSV, --csv <file>` | CSV report output file path |
+| `-silent, -q, --quiet` | Clean stdout output (pure subdomains, 100% pipe-friendly) |
+| `-v, --verbose` | Enable verbose diagnostic logging and timings |
+| `--check-network` | Test internet connectivity and DNS resolution reachability |
+| `--no-color` | Disable ANSI terminal color codes |
+
+---
+
 ## 📡 REST API Reference
 
 | Method | Endpoint | Description | Sample Payload / Query |

@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 
 import requests
-from enumerator.request_utils import retry_request, get_session, random_user_agent
+from enumerator.request_utils import retry_request, get_session, random_user_agent, get_provider_last_error
 
 API_URL = 'https://api.certspotter.com/v1/issuances'
 CRTSH_API_URL = 'https://crt.sh/?q=%25.{domain}&output=json'
@@ -20,13 +20,46 @@ DEFAULT_PROVIDER_ORDER = (
     'amass', 'subfinder', 'subfinder_all', 'sslmate', 'crtsh',
     'rapiddns', 'hackertarget', 'otx', 'urlscan'
 )
+# Default passive suite: fast, resilient tools (Amass is kept separate by default)
+DEFAULT_PASSIVE_PROVIDERS = (
+    'subfinder', 'crtsh', 'sslmate', 'rapiddns', 'hackertarget', 'otx', 'urlscan'
+)
+
+TOOL_ALIASES = {
+    'subfinder': 'subfinder',
+    'sub-finder': 'subfinder',
+    'subfinder-fast': 'subfinder',
+    'subfinder_fast': 'subfinder',
+    'subfinder_all': 'subfinder_all',
+    'subfinder-all': 'subfinder_all',
+    'amass': 'amass',
+    'owasp-amass': 'amass',
+    'owasp_amass': 'amass',
+    'crtsh': 'crtsh',
+    'crt.sh': 'crtsh',
+    'crt': 'crtsh',
+    'sslmate': 'sslmate',
+    'certspotter': 'sslmate',
+    'cert-spotter': 'sslmate',
+    'rapiddns': 'rapiddns',
+    'rapid-dns': 'rapiddns',
+    'hackertarget': 'hackertarget',
+    'hacker-target': 'hackertarget',
+    'ht': 'hackertarget',
+    'otx': 'otx',
+    'alienvault': 'otx',
+    'alienvault-otx': 'otx',
+    'urlscan': 'urlscan',
+    'urlscan.io': 'urlscan',
+    'url-scan': 'urlscan',
+}
 # Amass is the opt-in deep source. Its own timeout is in minutes; allow a
 # small process-level grace period so it can flush the final passive results.
 AMASS_DEEP_TIMEOUT_MINUTES = 15
 PROVIDER_TIMEOUTS = {
     'amass': 930,
-    'subfinder': 35,
-    'subfinder_all': 130,
+    'subfinder': 70,
+    'subfinder_all': 140,
     'sslmate': 30,
     'crtsh': 30,
     'rapiddns': 20,
@@ -147,7 +180,7 @@ def subfinder(domain):
         env['APPDATA'] = str(SUBFINDER_APPDATA)
         env['LOCALAPPDATA'] = str(SUBFINDER_APPDATA)
     return _run_cmd(
-        ['subfinder', '-d', domain, '-silent', '-duc', '-timeout', '12', '-max-time', '1'],
+        ['subfinder', '-d', domain, '-silent', '-duc', '-timeout', '8', '-max-time', '1'],
         PROVIDER_TIMEOUTS['subfinder'], 'Subfinder', env=env
     )
 
@@ -229,7 +262,7 @@ def sslmate(domain):
                 max_retries=2, base_delay=1.5, min_interval=0.4,
             )
             if not r or r.status_code != 200:
-                err_detail = f'HTTP {r.status_code}' if r else 'no response'
+                err_detail = f'HTTP {r.status_code}' if r else (get_provider_last_error('sslmate') or 'no response')
                 return sorted(values), f'SSLMate CT request issue ({err_detail}); partial results kept.', len(values)
             records = r.json()
             pages += 1
@@ -278,7 +311,8 @@ def crtsh(domain):
         elif r:
             last_err = f'crt.sh returned HTTP {r.status_code}'
         else:
-            last_err = 'crt.sh connection failed after retries'
+            diag = get_provider_last_error('crtsh')
+            last_err = f'crt.sh connection failed ({diag})' if diag else 'crt.sh connection failed after retries'
         if records:
             break
 
@@ -309,7 +343,8 @@ def rapiddns(domain):
         max_retries=2, base_delay=1.5, min_interval=0.5,
     )
     if not r:
-        return [], 'RapidDNS request failed after retries.', 0
+        diag = get_provider_last_error('rapiddns')
+        return [], f'RapidDNS request failed: {diag}' if diag else 'RapidDNS request failed after retries.', 0
     if r.status_code != 200:
         return [], f'RapidDNS returned HTTP {r.status_code}', 0
     pattern = re.compile(r'(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+' + re.escape(root), re.IGNORECASE)
@@ -326,7 +361,8 @@ def hackertarget(domain):
         max_retries=2, base_delay=2.0, min_interval=1.0,
     )
     if not r:
-        return [], 'HackerTarget request failed after retries.', 0
+        diag = get_provider_last_error('hackertarget')
+        return [], f'HackerTarget request failed: {diag}' if diag else 'HackerTarget request failed after retries.', 0
     if r.status_code != 200:
         return [], f'HackerTarget returned HTTP {r.status_code}', 0
     text = r.text.strip()
@@ -350,7 +386,8 @@ def otx(domain):
         max_retries=2, base_delay=1.5, min_interval=0.5,
     )
     if not r:
-        return [], 'AlienVault OTX request failed after retries.', 0
+        diag = get_provider_last_error('otx')
+        return [], f'AlienVault OTX request failed: {diag}' if diag else 'AlienVault OTX request failed after retries.', 0
     if r.status_code != 200:
         return [], f'AlienVault OTX returned HTTP {r.status_code}', 0
     try:
@@ -373,7 +410,8 @@ def urlscan(domain):
         max_retries=2, base_delay=1.5, min_interval=0.5,
     )
     if not r:
-        return [], 'URLScan request failed after retries.', 0
+        diag = get_provider_last_error('urlscan')
+        return [], f'URLScan request failed: {diag}' if diag else 'URLScan request failed after retries.', 0
     if r.status_code != 200:
         return [], f'URLScan returned HTTP {r.status_code}', 0
     try:

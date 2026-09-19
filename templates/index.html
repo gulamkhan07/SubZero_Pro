@@ -1300,13 +1300,45 @@
       const stats = Object.entries(data.sources || {}).map(([k, v]) => `${k}: ${v}`).join('  •  ');
       document.getElementById('source-stats').textContent = stats || 'No external sources returned results';
 
-      // Warnings
+      // Warnings & Provider Notices
       const warningsEl = document.getElementById('warnings');
       if (data.errors && data.errors.length > 0) {
-        warningsEl.textContent = data.errors.join('\n');
+        const escapeText = str => {
+          const p = document.createElement('p');
+          p.textContent = str;
+          return p.innerHTML;
+        };
+
+        const itemsHtml = data.errors.map(err => {
+          let badge = 'NOTICE';
+          let badgeClass = 'warn-tag-notice';
+          const lower = String(err).toLowerCase();
+          if (lower.includes('timed out') || lower.includes('timeout')) {
+            badge = 'TIMEOUT'; badgeClass = 'warn-tag-timeout';
+          } else if (lower.includes('rate limit') || lower.includes('429') || lower.includes('exceeded')) {
+            badge = 'RATE LIMIT'; badgeClass = 'warn-tag-ratelimit';
+          } else if (lower.includes('connection') || lower.includes('dns') || lower.includes('offline') || lower.includes('refused')) {
+            badge = 'NETWORK'; badgeClass = 'warn-tag-network';
+          } else if (lower.includes('ssl') || lower.includes('proxy')) {
+            badge = 'SSL / PROXY'; badgeClass = 'warn-tag-ssl';
+          }
+          return `<div class="warn-item"><span class="warn-tag ${badgeClass}">${badge}</span><span class="warn-msg">${escapeText(err)}</span></div>`;
+        }).join('');
+
+        warningsEl.innerHTML = `
+          <div class="warn-header">
+            <div class="warn-title">
+              <span class="warn-icon">⚡</span>
+              <span>External OSINT Notices (${data.errors.length})</span>
+            </div>
+            <span class="warn-note">Non-fatal provider notices; partial findings and other active engines preserved below.</span>
+          </div>
+          <div class="warn-list">${itemsHtml}</div>
+        `;
         warningsEl.classList.remove('hidden');
       } else {
         warningsEl.classList.add('hidden');
+        warningsEl.innerHTML = '';
       }
 
       currentResults = data.results || [];

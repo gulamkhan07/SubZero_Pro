@@ -28,7 +28,7 @@ if _missing:
 
 from flask import Flask, jsonify, render_template, request, Response, send_file
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from enumerator.providers import DEFAULT_PROVIDER_ORDER, PROVIDERS
+from enumerator.providers import DEFAULT_PROVIDER_ORDER, DEFAULT_PASSIVE_PROVIDERS, TOOL_ALIASES, PROVIDERS
 from enumerator.normalizer import normalize_subdomains, valid_domain
 from enumerator.active_scanner import dns_brute_force
 from enumerator.history_store import save_scan_history, get_recent_scans, get_domain_scans, compute_diff
@@ -264,12 +264,17 @@ def scan():
 
     requested = data.get('sources')
     if requested is None:
-        requested = list(DEFAULT_PROVIDER_ORDER)
+        requested = list(DEFAULT_PASSIVE_PROVIDERS)
     if isinstance(requested, str):
         requested = [requested]
-    requested = [s for s in requested if isinstance(s, str)]
+    requested = [TOOL_ALIASES.get(s.strip().lower(), s.strip().lower()) for s in requested if isinstance(s, str)]
 
-    selected = [name for name in DEFAULT_PROVIDER_ORDER if name in requested]
+    exclude_list = data.get('exclude') or data.get('exclude_sources') or []
+    if isinstance(exclude_list, str):
+        exclude_list = [x.strip().lower() for x in exclude_list.replace(' ', ',').split(',') if x.strip()]
+    exclude_set = {TOOL_ALIASES.get(x, x) for x in exclude_list if isinstance(x, str)}
+
+    selected = [name for name in DEFAULT_PROVIDER_ORDER if name in requested and name not in exclude_set]
     active_dns = bool(data.get('active_dns'))
     active_wordlist = str(data.get('active_wordlist') or '5000').strip()
     verbose_dns = bool(data.get('verbose_dns', True))
