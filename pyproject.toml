@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "subzero"
+version = "2.2.0"
+description = "SubZero - Enterprise OSINT Reconnaissance, Multi-Resolver DNS Integrity & Attack Surface Auditor"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [
+    { name = "Gulam Khan" }
+]
+keywords = [
+    "subdomain-enumeration",
+    "osint",
+    "bugbounty",
+    "reconnaissance",
+    "dns-bruteforce",
+    "cname-takeover",
+    "cybersecurity"
+]
+dependencies = [
+    "Flask>=3.0.0,<4.0.0",
+    "requests>=2.31.0,<3.0.0",
+    "dnspython>=2.6.0,<3.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0"
+]
+
+[project.scripts]
+subzero = "enumerator.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["enumerator*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
