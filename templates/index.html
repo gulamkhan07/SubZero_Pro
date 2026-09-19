@@ -5,21 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="author" content="Gulam Khan">
   <meta name="description" content="SubZero - Enterprise OSINT Reconnaissance, Multi-Domain Batch Scanner, History Diff & Live Prober Developed by Gulam Khan">
-  <title>SubZero – Developed by Gulam Khan</title>
+  <title>SubZero — OSINT & Reconnaissance Platform (by Gulam Khan)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=20260909_ultra_clean">
+  <link rel="stylesheet" href="/static/style.css?v=2026_monochrome_noir">
 </head>
 <body>
-  <!-- Ambient Dynamic Polymorphic Liquid Background & Mesh -->
-  <div class="ambient-glow-mesh" aria-hidden="true">
-    <div class="cyber-grid-overlay"></div>
-    <div class="glow-orb orb-1"></div>
-    <div class="glow-orb orb-2"></div>
-    <div class="glow-orb orb-3"></div>
-    <div class="glow-orb orb-4"></div>
-  </div>
+
 
   <main class="wrap">
     <!-- Top Platform Navigation: Clean, Uncluttered, Enterprise Dashboard Feel -->
@@ -27,36 +20,36 @@
       <div class="platform-nav-wrapper">
         <nav class="platform-nav" aria-label="Engine Views">
           <button type="button" class="nav-tab active" id="tab-btn-single" onclick="switchPlatformTab('single')">
-            <span class="nav-icon">🎯</span>
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
             <span class="nav-title">Single Recon</span>
           </button>
           <button type="button" class="nav-tab" id="tab-btn-batch" onclick="switchPlatformTab('batch')">
-            <span class="nav-icon">🗂️</span>
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></span>
             <span class="nav-title">Batch Scanner</span>
           </button>
           <button type="button" class="nav-tab" id="tab-btn-history" onclick="switchPlatformTab('history')">
-            <span class="nav-icon">🔄</span>
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
             <span class="nav-title">History & Diff</span>
           </button>
           <button type="button" class="nav-tab nav-tab-prober" id="tab-btn-prober" onclick="switchPlatformTab('prober')">
-            <span class="nav-icon">🌐</span>
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
             <span class="nav-title">Live HTTP Prober</span>
             <span class="nav-badge-pill">Separate</span>
           </button>
           <button type="button" class="nav-tab" id="tab-btn-permutations" onclick="switchPlatformTab('permutations')">
-            <span class="nav-icon">🧬</span>
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span>
             <span class="nav-title">Permutations</span>
           </button>
           <button type="button" class="nav-tab" id="tab-btn-archive" onclick="switchPlatformTab('archive')">
-            <span class="nav-icon">📜</span>
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
             <span class="nav-title">Archive Miner</span>
           </button>
           <button type="button" class="nav-tab" id="tab-btn-auditor" onclick="switchPlatformTab('auditor')">
-            <span class="nav-icon">🛡️</span>
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
             <span class="nav-title">CNAME Auditor</span>
           </button>
           <a href="/api/download/zip" class="nav-tab nav-tab-download" download="subzero_by_gulam_khan.zip" title="Download Complete Project ZIP (Portable & Ready-to-Run)" style="text-decoration: none; margin-left: auto;">
-            <span class="nav-icon">📦</span>
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
             <span class="nav-title">Download ZIP</span>
           </a>
         </nav>
@@ -92,7 +85,7 @@
 
         <form id="scan-form" class="row" onsubmit="event.preventDefault(); startScan();">
           <div class="input-wrapper">
-            <span class="input-icon">🎯</span>
+            <span class="input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
             <input id="domain" type="text" placeholder="Enter target domain, e.g. example.com" autocomplete="off" spellcheck="false" required>
           </div>
           <button id="scan-btn" type="submit">
@@ -107,11 +100,11 @@
         <!-- Clean Quick Toolbar (Clean Minimalist Interface) -->
         <div class="quick-toolbar">
           <button type="button" class="drawer-toggle-btn" id="btn-toggle-engines" onclick="toggleEngineDrawer()">
-            <span>⚙️ Configure Engines & Resolvers</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg><span>Configure Engines & Resolvers</span>
             <span id="engine-drawer-arrow">▼</span>
           </button>
           <button type="button" class="drawer-toggle-btn" id="btn-toggle-terminal" onclick="toggleTerminalBox()">
-            <span>💻 Live Telemetry Terminal</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><span>Telemetry Terminal</span>
           </button>
           <div class="quick-resolver-pill">
             <span class="quick-dot"></span>
@@ -300,16 +293,16 @@
             <p id="source-stats" class="muted stats-line"></p>
           </div>
           <div class="actions">
-            <a id="link-html" href="#" class="action-btn action-btn-html" download title="Download Executive HTML Report">📄 HTML Report</a>
+            <a id="link-html" href="#" class="action-btn action-btn-html" download title="Download Executive HTML Report">HTML Report</a>
             <a id="link-txt" href="#" class="action-btn" download>TXT</a>
             <a id="link-csv" href="#" class="action-btn" download>CSV</a>
             <a id="link-json" href="#" class="action-btn" download>JSON</a>
             <a id="link-ips" href="#" class="action-btn action-btn-ips" download title="Download clean list of resolved unique IP addresses">IPs (.txt)</a>
-            <button type="button" id="btn-to-permutations" class="action-btn action-btn-permute" onclick="sendDiscoveredToPermutations()" title="Mutate discovered subdomains to uncover hidden staging/dev assets">🧬 Permute</button>
-            <button type="button" id="btn-to-archive" class="action-btn action-btn-archive" onclick="sendDomainToArchiveMiner()" title="Extract historical URLs & sensitive endpoints from Internet Archive">📜 Archive URLs</button>
-            <button type="button" id="btn-to-auditor" class="action-btn action-btn-auditor" onclick="sendDiscoveredToAuditor()" title="Audit DNS CNAMEs for dangling cloud pointers">🛡️ CNAME Audit</button>
-            <button type="button" id="btn-to-prober" class="action-btn action-btn-probe" onclick="sendDiscoveredToProber()" title="Send discovered subdomains to the Live HTTP Prober">🌐 Probe Status</button>
-            <button type="button" id="copy-ips-btn" class="action-btn action-btn-copy-ips" onclick="copyDiscoveredIPs()" title="Copy all unique resolved IPs to clipboard">📋 Copy IPs</button>
+            <button type="button" id="btn-to-permutations" class="action-btn action-btn-permute" onclick="sendDiscoveredToPermutations()" title="Mutate discovered subdomains to uncover hidden staging/dev assets">Permute</button>
+            <button type="button" id="btn-to-archive" class="action-btn action-btn-archive" onclick="sendDomainToArchiveMiner()" title="Extract historical URLs & sensitive endpoints from Internet Archive">Archive URLs</button>
+            <button type="button" id="btn-to-auditor" class="action-btn action-btn-auditor" onclick="sendDiscoveredToAuditor()" title="Audit DNS CNAMEs for dangling cloud pointers">CNAME Audit</button>
+            <button type="button" id="btn-to-prober" class="action-btn action-btn-probe" onclick="sendDiscoveredToProber()" title="Send discovered subdomains to the Live HTTP Prober">Probe Status</button>
+            <button type="button" id="copy-ips-btn" class="action-btn action-btn-copy-ips" onclick="copyDiscoveredIPs()" title="Copy all unique resolved IPs to clipboard">Copy IPs</button>
             <button type="button" id="copy-btn" class="copy-all-btn" onclick="copyAll()">Copy Subs</button>
           </div>
         </div>
@@ -317,7 +310,7 @@
         <!-- Real-Time Filter Bar -->
         <div class="filter-row">
           <div class="filter-wrapper">
-            <span class="filter-icon">🔍</span>
+            <span class="filter-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
             <input id="filter-input" type="text" placeholder="Filter subdomains (e.g. admin, api, vpn, mail)..." oninput="filterResults()">
             <button type="button" id="filter-clear-btn" class="filter-clear hidden" onclick="clearFilter()">✕</button>
           </div>
@@ -360,7 +353,7 @@
 
           <div class="batch-controls">
             <button id="batch-start-btn" type="button" class="btn-primary" onclick="startBatchScan()">
-              <span>🚀 Launch Batch Recon</span>
+              <span>Launch Batch Recon</span>
             </button>
             <button id="batch-cancel-btn" type="button" class="btn-cancel hidden" onclick="cancelBatchScan()">
               <span>✕ Cancel Batch</span>
@@ -462,7 +455,7 @@
             </select>
           </div>
           <button type="button" class="btn-primary" onclick="computeScanDiff()">
-            <span>⚡ Compare Scans</span>
+            <span>Compare Scans</span>
           </button>
         </div>
 
@@ -561,7 +554,7 @@
 
           <div class="batch-controls" style="align-items: center; flex-wrap: wrap;">
             <button id="probe-start-btn" type="button" class="btn-primary" onclick="startLiveProbe()">
-              <span>🌐 Probe Live Status</span>
+              <span>Probe Live Status</span>
             </button>
             <div class="active-group resolver-group" style="padding: 4px 10px;">
               <span style="font-size: 11px; font-weight: 700; color: var(--accent-emerald);">RESOLVER:</span>
@@ -609,7 +602,7 @@
         <div id="prober-results-box" class="prober-results-container hidden" style="margin-top: 24px;">
           <div class="filter-row">
             <div class="filter-wrapper">
-              <span class="filter-icon">🔍</span>
+              <span class="filter-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
               <input id="prober-filter-input" type="text" placeholder="Filter by status (200, 403), title, server, or hostname..." oninput="filterProberResults()">
             </div>
             <button type="button" class="term-btn" onclick="copyLiveHosts()">Copy Live Hosts</button>
@@ -672,7 +665,7 @@
 
           <div class="batch-controls">
             <button id="audit-start-btn" type="button" class="btn-primary" onclick="startCnameAudit()">
-              <span>🛡️ Run DNS Integrity Audit</span>
+              <span>Run DNS Integrity Audit</span>
             </button>
             <button type="button" class="term-btn" onclick="document.getElementById('auditor-hosts').value = ''; updateAuditorCount();">Clear</button>
           </div>
@@ -702,7 +695,7 @@
         <div id="auditor-results-box" class="prober-results-container hidden" style="margin-top: 24px;">
           <div class="filter-row">
             <div class="filter-wrapper">
-              <span class="filter-icon">🔍</span>
+              <span class="filter-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
               <input id="auditor-filter-input" type="text" placeholder="Filter by host, service (AWS, GitHub, Heroku), or status..." oninput="filterAuditorResults()">
             </div>
             <button type="button" class="term-btn" onclick="copyDanglingHosts()">Copy Dangling Hosts</button>
@@ -779,10 +772,10 @@
 
           <div class="batch-controls" style="margin-top: 16px;">
             <button id="perm-scan-btn" type="button" class="btn-primary" onclick="startPermutationScan()">
-              <span>🚀 Run Permutation Scan</span>
+              <span>Run Permutation Scan</span>
             </button>
             <button id="perm-preview-btn" type="button" class="action-btn" onclick="previewPermutationCandidates()">
-              <span>👁️ Preview Candidates (Dry Run)</span>
+              <span>Preview Candidates (Dry Run)</span>
             </button>
             <button type="button" class="term-btn" onclick="document.getElementById('perm-seeds').value = '';">Clear Seeds</button>
           </div>
@@ -807,7 +800,7 @@
 
           <div class="filter-row">
             <div class="filter-wrapper">
-              <span class="filter-icon">🔍</span>
+              <span class="filter-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
               <input id="perm-filter-input" type="text" placeholder="Filter discovered mutations..." oninput="filterPermutationResults()">
             </div>
             <button type="button" class="term-btn" onclick="copyLivePermutations()">Copy Live Hosts</button>
@@ -860,7 +853,7 @@
               <input id="archive-domain-input" type="text" placeholder="Enter target domain, e.g. example.com" autocomplete="off" spellcheck="false">
             </div>
             <button id="archive-mine-btn" type="button" class="btn-primary" onclick="startArchiveMining()">
-              <span>🔍 Mine Historical Archives</span>
+              <span>Mine Historical Archives</span>
             </button>
           </div>
         </div>
@@ -897,7 +890,7 @@
 
           <div class="filter-row">
             <div class="filter-wrapper">
-              <span class="filter-icon">🔍</span>
+              <span class="filter-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
               <input id="archive-filter-input" type="text" placeholder="Filter archive results..." oninput="filterArchiveResults()">
             </div>
             <button type="button" class="term-btn" onclick="copyCurrentArchiveCategory()">Copy Current List</button>
@@ -1349,10 +1342,10 @@
         nameSpan.onclick = (e) => {
           e.stopPropagation();
           navigator.clipboard.writeText(row.subdomain);
-          rowCopyBtn.innerHTML = '✓';
+          rowCopyBtn.innerHTML = 'Copied';
           rowCopyBtn.classList.add('copied');
           setTimeout(() => {
-            rowCopyBtn.innerHTML = '📋';
+            rowCopyBtn.innerHTML = 'Copy';
             rowCopyBtn.classList.remove('copied');
           }, 1200);
         };
@@ -1362,14 +1355,14 @@
         rowCopyBtn.className = 'row-copy-btn';
         rowCopyBtn.type = 'button';
         rowCopyBtn.title = `Copy ${row.subdomain}`;
-        rowCopyBtn.innerHTML = '📋';
+        rowCopyBtn.innerHTML = 'Copy';
         rowCopyBtn.onclick = (e) => {
           e.stopPropagation();
           navigator.clipboard.writeText(row.subdomain);
-          rowCopyBtn.innerHTML = '✓';
+          rowCopyBtn.innerHTML = 'Copied';
           rowCopyBtn.classList.add('copied');
           setTimeout(() => {
-            rowCopyBtn.innerHTML = '📋';
+            rowCopyBtn.innerHTML = 'Copy';
             rowCopyBtn.classList.remove('copied');
           }, 1200);
         };
@@ -1393,13 +1386,13 @@
           if (row.is_cdn || (row.ip_intel && row.ip_intel.is_cdn)) {
             const btype = (row.ip_intel && row.ip_intel.badge_type) ? row.ip_intel.badge_type : 'cloudflare';
             wafBadge.className = `badge badge-waf badge-waf-${btype}`;
-            wafBadge.textContent = `🛡️ ${row.waf_provider || 'WAF Protected'}`;
+            wafBadge.textContent = `${row.waf_provider || 'WAF Protected'}`;
             wafBadge.title = `Protected by CDN/WAF: ${row.waf_provider || 'Cloudflare / CDN'}`;
             metaSpan.appendChild(wafBadge);
           } else if (row.is_origin || row.dns === 'resolved') {
             wafBadge.className = 'badge badge-origin-ip';
             const prov = (row.waf_provider && row.waf_provider !== 'Direct Server' && row.waf_provider !== 'None') ? ` (${row.waf_provider})` : '';
-            wafBadge.textContent = `🔥 Direct Origin IP${prov}`;
+            wafBadge.textContent = `Direct Origin IP${prov}`;
             wafBadge.title = `Direct Origin Host IP (Potential WAF Bypass Target!): ${row.dns_ips.join(', ')}`;
             metaSpan.appendChild(wafBadge);
           }
@@ -1408,11 +1401,11 @@
           if (row.dns === 'resolved') {
             dnsBadge.className = 'badge badge-dns-live';
             const resLabel = row.dns_resolver ? row.dns_resolver.split(' ')[0] : 'Live';
-            dnsBadge.textContent = `✓ ${resLabel}`;
+            dnsBadge.textContent = `Live (${resLabel})`;
             dnsBadge.title = row.dns_summary || `Resolved via ${row.dns_resolver || 'Public DNS'}`;
           } else {
             dnsBadge.className = 'badge badge-dns-dead';
-            dnsBadge.textContent = '✗ Dead';
+            dnsBadge.textContent = 'Dead';
             dnsBadge.title = row.dns_summary || 'Dead: Confirmed unresolved across all configured resolvers';
           }
           metaSpan.appendChild(dnsBadge);
@@ -1423,7 +1416,7 @@
         if (sources.length > 0) {
           const srcBadge = document.createElement('span');
           srcBadge.className = 'badge badge-src badge-sources-pill';
-          const confStar = (row.confidence === 'high') ? '⭐ ' : '';
+          const confStar = (row.confidence === 'high') ? '• ' : '';
           if (sources.length === 1) {
             srcBadge.textContent = `${confStar}${sources[0]}`;
           } else {
@@ -1973,7 +1966,7 @@
         alert('Probe Error: ' + err.message);
       } finally {
         probeBtn.disabled = false;
-        probeBtn.innerHTML = '<span>🌐 Probe Live Status</span>';
+        probeBtn.innerHTML = '<span>Probe Live Status</span>';
       }
     }
 
@@ -2136,7 +2129,7 @@
         alert('Audit Error: ' + err.message);
       } finally {
         auditBtn.disabled = false;
-        auditBtn.innerHTML = '<span>🛡️ Run DNS Integrity Audit</span>';
+        auditBtn.innerHTML = '<span>Run DNS Integrity Audit</span>';
       }
     }
 
@@ -2327,7 +2320,7 @@
         alert('Preview Error: ' + err.message);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span>👁️ Preview Candidates (Dry Run)</span>';
+        btn.innerHTML = '<span>Preview Candidates (Dry Run)</span>';
       }
     }
 
@@ -2370,7 +2363,7 @@
         alert('Permutation Scan Error: ' + err.message);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span>🚀 Run Permutation Scan</span>';
+        btn.innerHTML = '<span>Run Permutation Scan</span>';
       }
     }
 
@@ -2484,7 +2477,7 @@
         alert('Archive Mining Error: ' + err.message);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span>🔍 Mine Historical Archives</span>';
+        btn.innerHTML = '<span>Mine Historical Archives</span>';
       }
     }
 
