@@ -6,28 +6,21 @@ Version: 2.2.0
 __author__ = "Gulam"
 __version__ = "2.2.0"
 
-import sys, subprocess, importlib.util, os
-
-# =========================================================================
-# AUTO-BOOTSTRAP: Auto-install missing Python packages if launched directly
-# =========================================================================
-_REQUIRED_PACKAGES = [
-    ('flask', 'Flask>=3.0,<4'),
-    ('requests', 'requests>=2.31,<3'),
-    ('dns.resolver', 'dnspython>=2.6,<3')
-]
-_missing = [pkg for mod, pkg in _REQUIRED_PACKAGES if importlib.util.find_spec(mod) is None]
-if _missing:
-    print(f"[*] SubZero: Missing runtime dependencies detected: {', '.join(_missing)}")
-    print("[*] Automatically installing required packages via pip...")
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", *_missing])
-        print("[+] Dependencies successfully installed!\n")
-    except Exception as _e:
-        print(f"[!] Auto-installation failed: {_e}. Run: pip install -r requirements.txt\n")
+import atexit
+import copy
+import csv
+import io
+import json
+import os
+import sys
+import threading
+import time
+import uuid
+import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request, Response, send_file
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from enumerator.providers import DEFAULT_PROVIDER_ORDER, DEFAULT_PASSIVE_PROVIDERS, TOOL_ALIASES, PROVIDERS
 from enumerator.normalizer import normalize_subdomains, valid_domain
 from enumerator.active_scanner import dns_brute_force
@@ -35,8 +28,6 @@ from enumerator.history_store import save_scan_history, get_recent_scans, get_do
 from enumerator.http_prober import probe_hosts
 from enumerator.dns_resolver import check_domain_multi_resolver
 from enumerator.ip_intel import classify_ips
-from pathlib import Path
-import atexit, copy, csv, io, json, os, threading, time, uuid, zipfile
 
 app = Flask(__name__)
 
@@ -47,7 +38,9 @@ def add_no_cache_headers(response):
     response.headers['Expires'] = '0'
     return response
 
+# Global Thread Pool Executors
 SCAN_EXECUTOR = ThreadPoolExecutor(max_workers=2)
+BATCH_EXECUTOR = ThreadPoolExecutor(max_workers=2)
 JOBS = {}
 JOBS_LOCK = threading.RLock()
 CACHE = {}
@@ -446,7 +439,6 @@ def api_history_diff():
 
 BATCH_JOBS = {}
 BATCH_LOCK = threading.RLock()
-BATCH_EXECUTOR = ThreadPoolExecutor(max_workers=2)
 
 
 def _run_batch(batch_id, domains, config):
