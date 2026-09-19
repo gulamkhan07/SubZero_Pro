@@ -49,6 +49,7 @@ bin/amass
 *.csv
 *.txt
 *.html
+!requirements.txt
 !templates/
 !templates/*.html
 !wordlists/*.txt
