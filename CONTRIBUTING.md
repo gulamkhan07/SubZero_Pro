@@ -41,13 +41,20 @@ python install_tools.py
 
 ## 🧪 Running Unit & Integration Tests
 
-Always ensure the entire test suite passes before submitting a pull request:
+Always ensure the entire 46-test suite passes before submitting a pull request:
 ```bash
+# Standard Python (built-in unittest, zero extra dependencies):
+python -m unittest discover -s tests -p "test_*.py"
+
+# Or with uv:
+uv run --with requests --with dnspython --with flask python -m unittest discover -s tests -p "test_*.py"
+
+# Or with pytest:
 pytest tests/
-# or with uv:
-uv run --with-requirements requirements.txt --with pytest pytest tests/
 ```
-All tests must pass with 100% green status.
+All 46 unit tests must pass with 100% green status.
+
+> 📖 **CLI Reference**: Before adding or updating CLI flags, refer to [COMMANDS.md](COMMANDS.md).
 
 ---
 

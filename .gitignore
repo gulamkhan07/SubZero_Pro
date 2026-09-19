@@ -49,7 +49,12 @@ bin/amass
 *.csv
 *.txt
 *.html
+*_recon.json
+*results.json
+output.json
+full_recon.json
 !requirements.txt
 !templates/
 !templates/*.html
 !wordlists/*.txt
+
