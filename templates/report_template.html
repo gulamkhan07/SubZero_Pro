@@ -372,6 +372,29 @@
       </div>
     </div>
 
+    <!-- Main Target Domain Showcase Card -->
+    {% if main_domain %}
+    <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.4); border-left: 4px solid #10b981; border-radius: 10px; padding: 14px 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.6); color: #34d399; font-weight: 800; font-size: 11px; padding: 3px 8px; border-radius: 6px; letter-spacing: 0.5px;">MAIN TARGET DOMAIN 🎯</span>
+        <strong style="font-family: var(--font-mono); font-size: 16px; color: #ffffff;">{{ main_domain.domain or main_domain.subdomain or domain }}</strong>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        {% if main_domain.primary_ip %}
+        <span class="badge badge-src" style="font-family: monospace; font-size: 12px; color: #38bdf8; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.3);">{{ main_domain.primary_ip }}</span>
+        {% endif %}
+        {% if main_domain.cname %}
+        <span class="badge badge-src" style="font-family: monospace; font-size: 11px;">CNAME: {{ main_domain.cname }}</span>
+        {% endif %}
+        {% if main_domain.waf_provider and main_domain.waf_provider != 'Direct Server' %}
+        <span class="badge" style="background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.4); font-weight: 700;">{{ main_domain.waf_provider }}</span>
+        {% elif main_domain.is_origin %}
+        <span class="badge" style="background: #ffffff; color: #000000; font-weight: 800;">Direct Origin IP 🔥</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Results Table -->
     <section class="section-card">
       <div class="section-top">

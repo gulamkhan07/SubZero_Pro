@@ -19,15 +19,20 @@ import uuid
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from flask import Flask, jsonify, render_template, request, Response, send_file
 from enumerator.providers import DEFAULT_PROVIDER_ORDER, DEFAULT_PASSIVE_PROVIDERS, TOOL_ALIASES, PROVIDERS
-from enumerator.normalizer import normalize_subdomains, valid_domain
+from enumerator.normalizer import normalize_subdomains, valid_domain, clean
 from enumerator.active_scanner import dns_brute_force
 from enumerator.history_store import save_scan_history, get_recent_scans, get_domain_scans, compute_diff
 from enumerator.http_prober import probe_hosts
 from enumerator.dns_resolver import check_domain_multi_resolver
 from enumerator.ip_intel import classify_ips
+from enumerator.tls_scraper import scrape_tls_sans
+from enumerator.wildcard_detector import detect_wildcard_dns, is_wildcard_false_positive
+from enumerator.origin_verifier import verify_origin_candidates
+from enumerator.ptr_sweeper import sweep_ips_for_ptrs
 
 app = Flask(__name__)
 
@@ -91,6 +96,7 @@ def _add_log(job, msg):
         if 'logs' not in job:
             job['logs'] = []
         job['logs'].append(entry)
+        job['total_log_count'] = job.get('total_log_count', 0) + 1
         if len(job['logs']) > 10000:
             job['logs'] = job['logs'][-5000:]
 
@@ -104,12 +110,72 @@ def _job_view(job, include_results=True, since=0):
         'dns_validation': job['dns_validation'], 'active_dns': job.get('active_dns', False),
         'selected_resolver': job.get('selected_resolver', 'all'),
         'cached': job['cached'],
+        'main_domain': job.get('main_domain') or {
+            'domain': job['domain'],
+            'subdomain': job['domain'],
+            'dns': 'not-checked',
+            'dns_ips': [],
+            'waf_provider': 'Direct Server'
+        },
         'logs': all_logs[since:] if since < len(all_logs) else [],
-        'total_logs': len(all_logs),
+        'total_logs': job.get('total_log_count', len(all_logs)),
+        'wildcard_dns': job.get('wildcard_dns'),
     }
     if include_results and job['status'] == 'completed':
         data['results'] = job['results']
     return data
+
+
+def _enrich_subdomain_record(item: Dict[str, Any], dns_res: Dict[str, Any], wc_info: Dict[str, Any]) -> None:
+    """Enriches a subdomain result item with DNS resolution and IP intelligence data."""
+    item['dns'] = dns_res.get('status', 'not-checked')
+    item['dns_resolver'] = dns_res.get('resolver', '')
+    item['dns_summary'] = dns_res.get('summary', '')
+    ips = dns_res.get('ips', [])
+    cname = dns_res.get('cname', '')
+    item['dns_ips'] = ips
+    item['cname'] = cname
+    item['is_wildcard_catchall'] = is_wildcard_false_positive(ips, cname, wc_info)
+    if ips or cname:
+        intel = classify_ips(ips, cname=cname)
+        item['ip_intel'] = intel
+        item['primary_ip'] = intel.get('primary_ip', '')
+        item['waf_provider'] = intel.get('waf_provider', 'Direct Server')
+        item['is_origin'] = intel.get('is_origin', True)
+        item['is_cdn'] = intel.get('is_cdn', False)
+        item['country_name'] = intel.get('country_name', 'Global')
+        item['country_code'] = intel.get('country_code', '')
+        item['country_flag'] = intel.get('country_flag', '🌐')
+
+
+def _resolve_and_enrich_hosts(
+    hosts: List[str],
+    source_tag: str,
+    selected_res: str,
+    wc_info: Dict[str, Any],
+    found_by: Dict[str, Set[str]],
+    results: List[Dict[str, Any]],
+    job: Dict[str, Any],
+) -> None:
+    """Concurrently resolves newly discovered hosts (e.g. from TLS-SAN or PTR sweeps) and enriches results."""
+    _add_log(job, f"[{source_tag.upper()}] Verifying DNS resolution for {len(hosts)} new host(s)...")
+    with ThreadPoolExecutor(max_workers=min(12, max(1, len(hosts)))) as pool:
+        futures = {pool.submit(check_domain_multi_resolver, s, selected_res): s for s in hosts}
+        for future in as_completed(futures):
+            s = futures[future]
+            found_by.setdefault(s, set()).add(source_tag)
+            item = {
+                'subdomain': s,
+                'sources': [source_tag],
+                'confidence': 'single-source',
+                'dns': 'not-checked',
+            }
+            try:
+                dns_res = future.result()
+                _enrich_subdomain_record(item, dns_res, wc_info)
+            except Exception:
+                item['dns'] = 'not-checked'
+            results.append(item)
 
 
 def _run_scan(job_id, selected):
@@ -167,7 +233,7 @@ def _run_scan(job_id, selected):
             counts[name] = count
             for host in normalize_subdomains(values, job['domain']):
                 found_by.setdefault(host, set()).add(name)
-            if error:
+            if error and not values:
                 errors.append(f'{name}: {error}')
             with JOBS_LOCK:
                 if job['cancelled']:
@@ -177,13 +243,76 @@ def _run_scan(job_id, selected):
 
     _add_log(job, f"[*] Merging & de-duplicating subdomains across all engines...")
     dns = {}
+    selected_res = job.get('selected_resolver', 'all')
+
+    # 1. Fast, guaranteed audit of Main Target Domain (Apex / Root Domain)
+    main_target = clean(job['domain'])
+    main_ips = []
+    main_cname = ''
+    main_summary = ''
+    main_resolver = 'System DNS'
+
+    try:
+        import socket
+        _, _, resolved_ips = socket.gethostbyname_ex(main_target)
+        if resolved_ips:
+            main_ips = list(dict.fromkeys(resolved_ips))
+            main_summary = f'Live via System DNS -> {main_ips[0]}'
+    except Exception:
+        pass
+
+    if job.get('dns_validation'):
+        try:
+            main_dns = check_domain_multi_resolver(main_target, selected_res)
+            if main_dns.get('status') == 'resolved':
+                main_ips = main_dns.get('ips', main_ips)
+                main_cname = main_dns.get('cname', '')
+                main_summary = main_dns.get('summary', main_summary)
+                main_resolver = main_dns.get('resolver', main_resolver)
+        except Exception:
+            pass
+
+    main_item = {
+        'domain': main_target,
+        'subdomain': main_target,
+        'is_main_domain': True,
+        'sources': ['Target Apex'],
+        'confidence': 'main-target',
+        'dns': 'resolved' if main_ips else 'unresolved',
+        'dns_resolver': main_resolver,
+        'dns_ips': main_ips,
+        'cname': main_cname,
+        'dns_summary': main_summary,
+    }
+    if main_ips or main_cname:
+        main_intel = classify_ips(main_ips, cname=main_cname)
+        main_item['ip_intel'] = main_intel
+        main_item['primary_ip'] = main_intel.get('primary_ip', main_ips[0] if main_ips else '')
+        main_item['waf_provider'] = main_intel.get('waf_provider', 'Direct Server')
+        main_item['is_origin'] = main_intel.get('is_origin', True)
+        main_item['is_cdn'] = main_intel.get('is_cdn', False)
+
+    if main_item.get('primary_ip'):
+        waf_label = main_item.get('waf_provider', 'Direct Server')
+        _add_log(job, f"[*] [MAIN TARGET DOMAIN] {main_target} -> IP: {main_item['primary_ip']} | WAF Protection: {waf_label}")
+    job['main_domain'] = main_item
+    job['main_domain_intel'] = main_item
+
+    # 2. Check for Wildcard DNS (*.target.com)
+    wc_info = {'is_wildcard': False, 'wildcard_ips': [], 'wildcard_cnames': []}
+    if job.get('dns_validation') or job.get('active_dns'):
+        wc_info = detect_wildcard_dns(main_target, timeout=1.5)
+        if wc_info.get('is_wildcard'):
+            _add_log(job, f"[!] NOTICE: Wildcard DNS (*.{main_target}) is ACTIVE -> IPs: {', '.join(wc_info['wildcard_ips'])}. False-positive catchall filtering enabled.")
+    job['wildcard_dns'] = wc_info
+
+    # 3. Audit All Discovered Subdomains
     if job['dns_validation']:
-        selected_res = job.get('selected_resolver', 'all')
         if selected_res and selected_res != 'all':
             _add_log(job, f"[*] Verifying DNS resolution specifically via {selected_res.upper()} for {len(found_by)} unique hosts...")
         else:
             _add_log(job, f"[*] Verifying DNS resolution across Tier-1 resolvers (Cloudflare, Google, OpenDNS, Quad9, AdGuard, Control D, Level3) for {len(found_by)} unique hosts...")
-        with ThreadPoolExecutor(max_workers=12) as pool:
+        with ThreadPoolExecutor(max_workers=20) as pool:
             futures = {pool.submit(check_domain_multi_resolver, host, selected_res): host for host in found_by}
             for future in as_completed(futures):
                 host = futures[future]
@@ -200,6 +329,8 @@ def _run_scan(job_id, selected):
 
     results = []
     for host in sorted(found_by):
+        if host == main_target:
+            continue
         item = {
             'subdomain': host,
             'sources': sorted(found_by[host]),
@@ -207,23 +338,57 @@ def _run_scan(job_id, selected):
             'dns': dns[host].get('status', 'unresolved') if host in dns else 'not-checked'
         }
         if host in dns:
-            item['dns_resolver'] = dns[host].get('resolver', '')
-            ips = dns[host].get('ips', [])
-            item['dns_ips'] = ips
-            item['dns_summary'] = dns[host].get('summary', '')
-            if ips:
-                intel = classify_ips(ips)
-                item['ip_intel'] = intel
-                item['primary_ip'] = intel.get('primary_ip', '')
-                item['waf_provider'] = intel.get('waf_provider', 'Direct Server')
-                item['is_origin'] = intel.get('is_origin', True)
-                item['is_cdn'] = intel.get('is_cdn', False)
+            _enrich_subdomain_record(item, dns[host], wc_info)
         results.append(item)
+
+    # 4. Advanced Discovery & Intelligence Post-Processing
+    if job['dns_validation'] and results:
+        # A. TLS SAN Certificate Scraping across resolved IPs
+        all_resolved_ips = list(set(ip for r in results for ip in r.get('dns_ips', []) if ip))
+        if all_resolved_ips:
+            _add_log(job, f"[*] Probing TLS SAN certificates across {len(all_resolved_ips[:15])} live IP(s)...")
+            try:
+                tls_subs = scrape_tls_sans(all_resolved_ips[:15], main_target, max_workers=10, timeout=2.5)
+                new_tls = [s for s in tls_subs if s not in found_by and s != main_target]
+                if new_tls:
+                    _add_log(job, f"[TLS-SAN] Discovered {len(new_tls)} hidden host(s) on direct SSL certificates: {', '.join(new_tls[:5])}")
+                    _resolve_and_enrich_hosts(new_tls, 'tls-san', selected_res, wc_info, found_by, results, job)
+            except Exception as e:
+                _add_log(job, f"[!] TLS probe notice: {e}")
+
+        # B. Confirmed True Origin IP (WAF Bypass) Active Verification
+        candidate_origin_ips = list(set(r.get('primary_ip') for r in results if r.get('is_origin') and r.get('primary_ip')))
+        if candidate_origin_ips:
+            _add_log(job, f"[*] Actively verifying True Origin IPs against WAF bypass for {len(candidate_origin_ips[:10])} candidate(s)...")
+            try:
+                ver_map = verify_origin_candidates(candidate_origin_ips[:10], main_target, max_workers=8, timeout=3.0)
+                for r in results:
+                    pip = r.get('primary_ip')
+                    if pip in ver_map and ver_map[pip].get('is_confirmed_origin'):
+                        r['is_confirmed_origin'] = True
+                        r['confirmed_origin'] = ver_map[pip]
+                        _add_log(job, f"[ORIGIN-CONFIRMED] 🔥 {pip} ({r['subdomain']}) verified as True Origin Server (WAF Bypass)!")
+            except Exception as e:
+                _add_log(job, f"[!] Origin verification notice: {e}")
+
+        # C. Reverse DNS (PTR) Subnet Sweep
+        if candidate_origin_ips:
+            _add_log(job, f"[*] Running reverse DNS (PTR) sweep on origin subnets...")
+            try:
+                ptr_res = sweep_ips_for_ptrs(candidate_origin_ips[:5], main_target, sweep_surrounding=True, window=3, max_workers=15)
+                ptr_subs = ptr_res.get('discovered_subdomains', [])
+                new_ptrs = [s for s in ptr_subs if s not in found_by and s != main_target]
+                if new_ptrs:
+                    _add_log(job, f"[PTR-SWEEP] Discovered {len(new_ptrs)} reverse DNS hostname(s): {', '.join(new_ptrs[:5])}")
+                    _resolve_and_enrich_hosts(new_ptrs, 'ptr-sweep', selected_res, wc_info, found_by, results, job)
+            except Exception as e:
+                _add_log(job, f"[!] PTR sweep notice: {e}")
+
     with JOBS_LOCK:
         if job['cancelled']:
             return
         job.update(status='completed', progress='Completed', sources=counts, errors=errors, results=results)
-        CACHE[job['cache_key']] = (time.time(), copy.deepcopy(results), counts.copy(), errors.copy())
+        CACHE[job['cache_key']] = (time.time(), copy.deepcopy(results), counts.copy(), errors.copy(), copy.deepcopy(main_item))
         save_scan_history(job['id'], job['domain'], results, counts)
     _add_log(job, f"[SUCCESS] Scan completed! Found {len(results)} total unique subdomains.")
 
@@ -286,13 +451,15 @@ def scan():
             'active_dns': active_dns, 'active_wordlist': active_wordlist, 'verbose_dns': verbose_dns,
             'selected_resolver': selected_resolver,
             'cancelled': False, 'cached': False, 'cache_key': cache_key, 'logs': [],
-            'created_at': time.time(),
+            'total_log_count': 0, 'created_at': time.time(),
+            'main_domain': None,
         }
         cached = CACHE.get(cache_key)
         if cached and now - cached[0] < CACHE_TTL_SECONDS:
-            _, results, counts, errors = cached
-            job.update(status='completed', progress='Completed (cached)', results=copy.deepcopy(results),
-                       sources=counts.copy(), errors=errors.copy(), cached=True)
+            cached_main = cached[4] if len(cached) > 4 else None
+            job.update(status='completed', progress='Completed (cached)', results=copy.deepcopy(cached[1]),
+                       sources=cached[2].copy(), errors=cached[3].copy(), cached=True,
+                       main_domain=copy.deepcopy(cached_main))
         JOBS[job['id']] = job
 
     if job['status'] != 'completed':
@@ -319,6 +486,17 @@ def cancel_scan(job_id):
         if job['status'] not in ('completed', 'cancelled'):
             job.update(cancelled=True, status='cancelled', progress='Cancellation requested.')
         return jsonify(_job_view(job))
+
+def _completed_job(job_id):
+    """Helper to retrieve a completed scan job by ID."""
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if not job:
+            return None, (jsonify(error='Scan job not found.'), 404)
+        if job['status'] != 'completed':
+            return None, (jsonify(error='Scan is not complete yet.'), 409)
+        return job, None
+
 
 @app.get('/api/results.txt')
 def results_txt():
@@ -389,17 +567,22 @@ def results_html():
     results = job['results']
     resolved_count = sum(1 for r in results if r.get('dns') == 'resolved')
     high_conf_count = sum(1 for r in results if r.get('confidence') == 'high')
-    rendered = render_template(
-        'report_template.html',
-        domain=job['domain'],
-        results=results,
-        total_count=len(results),
-        resolved_count=resolved_count,
-        high_conf_count=high_conf_count,
-        sources_count=len(job.get('sources') or {}),
-        active_dns=job.get('active_dns', False),
-        scan_date=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-    )
+    try:
+        rendered = render_template(
+            'report_template.html',
+            domain=job['domain'],
+            main_domain=job.get('main_domain'),
+            results=results,
+            total_count=len(results),
+            resolved_count=resolved_count,
+            high_conf_count=high_conf_count,
+            sources_count=len(job.get('sources') or {}),
+            active_dns=job.get('active_dns', False),
+            scan_date=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+        )
+    except Exception:
+        # Graceful fallback if report_template.html is missing
+        return jsonify(error='HTML report template not available. Use JSON or CSV export instead.'), 501
     return Response(
         rendered,
         mimetype='text/html',
@@ -469,7 +652,7 @@ def _run_batch(batch_id, domains, config):
                 'selected_resolver': selected_resolver,
                 'cancelled': False, 'cached': False,
                 'cache_key': (domain, tuple(selected), validate_dns, active_dns, active_wordlist, selected_resolver),
-                'logs': [],
+                'logs': [], 'total_log_count': 0,
             }
             JOBS[sub_job_id] = job
 
@@ -582,6 +765,16 @@ def batch_cancel(batch_id):
             return jsonify(error='Batch job not found.'), 404
         batch['cancelled'] = True
         batch['status'] = 'cancelled'
+    # Also cancel the currently running sub-scan job (if any)
+    with BATCH_LOCK:
+        current_target = batch.get('current_target')
+    if current_target:
+        with JOBS_LOCK:
+            for jid, job in JOBS.items():
+                if job.get('domain') == current_target and job.get('status') not in ('completed', 'cancelled'):
+                    job.update(cancelled=True, status='cancelled', progress='Cancelled via batch cancel.')
+                    break
+    with BATCH_LOCK:
         return jsonify(batch)
 
 
@@ -794,14 +987,7 @@ def api_graph_data():
     })
 
 
-def _completed_job(job_id):
-    with JOBS_LOCK:
-        job = JOBS.get(job_id)
-        if not job:
-            return None, (jsonify(error='Scan job not found.'), 404)
-        if job['status'] != 'completed':
-            return None, (jsonify(error='Scan is not complete yet.'), 409)
-        return job, None
+# _completed_job() is now defined earlier (before /api/results.txt) for clarity
 
 
 def _generate_project_zip(output_path: Path):

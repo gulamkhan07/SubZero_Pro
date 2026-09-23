@@ -77,9 +77,11 @@ def save_scan_history(job_id: str, domain: str, results: list, sources: dict):
 
 def get_recent_scans(limit=50, domain: str = None) -> list:
     init_db()
-    if isinstance(limit, str):
-        domain = limit
-        limit = 50
+    if not isinstance(limit, int):
+        try:
+            limit = int(limit)
+        except (ValueError, TypeError):
+            limit = 50
     try:
         with _get_conn() as conn:
             if domain:

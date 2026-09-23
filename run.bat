@@ -11,7 +11,7 @@ setlocal enabledelayedexpansion
 title SubZero - by Gulam Khan
 
 echo ============================================================================
-echo     SubZero v2.2 - OSINT & DNS Reconnaissance Platform
+echo     SubZero v2.2 - OSINT ^& DNS Reconnaissance Platform
 echo     Developed by: Gulam Khan
 echo ============================================================================
 echo.
@@ -91,7 +91,7 @@ goto :BOOTSTRAP_PORTABLE_ENGINE
 :: ----------------------------------------------------------------------------
 :RUN_UV
 set "UV_RUNNER=%~1"
-echo [*] Verifying external discovery tools & dictionaries...
+echo [*] Verifying external discovery tools ^& dictionaries...
 "%UV_RUNNER%" run python "%INSTALL_TOOLS_SCRIPT%"
 echo [*] Launching SubZero UI on http://127.0.0.1:5000...
 start "" http://127.0.0.1:5000
@@ -103,7 +103,7 @@ exit /b %ERRORLEVEL%
 :: Subroutine: Run via existing Virtual Environment (.venv)
 :: ----------------------------------------------------------------------------
 :RUN_VENV
-echo [*] Verifying external discovery tools & dictionaries...
+echo [*] Verifying external discovery tools ^& dictionaries...
 "%VENV_PYTHON%" "%INSTALL_TOOLS_SCRIPT%"
 echo [*] Launching SubZero UI on http://127.0.0.1:5000...
 start "" http://127.0.0.1:5000
@@ -131,7 +131,7 @@ if exist "%REQ_FILE%" (
     echo [*] Installing runtime Python dependencies...
     pip install -q -r "%REQ_FILE%"
 )
-echo [*] Verifying external discovery tools & dictionaries...
+echo [*] Verifying external discovery tools ^& dictionaries...
 python "%INSTALL_TOOLS_SCRIPT%"
 echo [*] Launching SubZero UI on http://127.0.0.1:5000...
 start "" http://127.0.0.1:5000

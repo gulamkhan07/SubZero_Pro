@@ -1,23 +1,42 @@
 """
-On-Demand Live HTTP / Web Service Status Prober.
-Strictly decoupled from pure DNS discovery. Checks live status codes, server headers, and titles.
+On-Demand Live HTTP / Web Service Status & Enterprise WAF Prober.
+Strictly decoupled from pure DNS discovery. Checks live status codes, server headers,
+WAF signatures (Cloudflare, AWS, Azure, Google Cloud Armor, Akamai, F5, Imperva, etc.),
+titles, and latency.
 Developed by: Gulam
 """
 __author__ = "Gulam"
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
+import socket
+import time
 import requests
 import urllib3
+from enumerator.ip_intel import detect_waf_from_http, classify_ips, classify_ip
 
 # Suppress insecure HTTPS warning for internal/self-signed certs during probing
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 PROBE_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1'
 }
+
+
+def _resolve_host_ip(host: str) -> str:
+    try:
+        return socket.gethostbyname(host)
+    except Exception:
+        return ""
 
 
 def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str = None) -> dict:
@@ -25,22 +44,28 @@ def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str =
     if not host:
         return {}
 
+    # Quick IP resolution for WAF / origin matching
+    resolved_ip = _resolve_host_ip(host)
+    ip_classification = classify_ip(resolved_ip) if resolved_ip else None
+
     # Try HTTPS first, fallback to HTTP
     endpoints = [f"https://{host}", f"http://{host}"]
     last_err = None
 
     for url in endpoints:
         r = None
+        t_start = time.perf_counter()
         try:
             r = requests.get(
                 url,
                 headers=PROBE_HEADERS,
                 timeout=timeout,
                 verify=False,
-                allow_redirects=True,
-                stream=True
+                allow_redirects=True
             )
-            # Read at most first 32KB for title extraction to keep RAM usage minimal
+            elapsed_ms = int((time.perf_counter() - t_start) * 1000)
+
+            # Read at most first 32KB for title and WAF extraction to keep RAM usage minimal
             body_chunk = ""
             if hasattr(r, 'text') and isinstance(r.text, str) and r.text:
                 body_chunk = r.text[:32768]
@@ -61,11 +86,38 @@ def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str =
                     title = ' '.join(m.group(1).split()).strip()[:90]
 
             server = ''
-            if hasattr(r, 'headers') and r.headers:
-                server = (r.headers.get('Server') or r.headers.get('server') or '').strip()[:40]
+            headers_dict = dict(r.headers) if hasattr(r, 'headers') and r.headers else {}
+            if headers_dict:
+                server = (headers_dict.get('Server') or headers_dict.get('server') or '').strip()[:40]
 
             status = r.status_code
             final_url = r.url
+
+            # Multi-tier WAF analysis: HTTP headers/body signatures + IP CIDR
+            waf_info = detect_waf_from_http(headers_dict, body_chunk, status)
+            waf_detected = False
+            waf_provider = ""
+            waf_badge = "waf"
+            waf_evidence = ""
+
+            if waf_info:
+                waf_detected = True
+                waf_provider = waf_info['waf_provider']
+                waf_badge = waf_info['badge_type']
+                waf_evidence = waf_info.get('evidence', '')
+            elif ip_classification and ip_classification.get('is_cdn'):
+                waf_detected = True
+                waf_provider = ip_classification['waf_provider']
+                waf_badge = ip_classification['badge_type']
+                waf_evidence = f"IP Range Match ({resolved_ip})"
+
+            # If server is empty but WAF is detected, display the WAF platform
+            display_server = server
+            if not display_server or display_server in ('—', 'Hidden'):
+                if waf_detected:
+                    display_server = waf_provider
+            elif waf_detected and waf_badge != 'origin' and waf_provider.lower() not in display_server.lower():
+                display_server = f"{display_server} ({waf_provider})"
 
             return {
                 'host': host,
@@ -73,7 +125,13 @@ def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str =
                 'alive': True,
                 'status_code': status,
                 'title': title or '—',
-                'server': server or '—',
+                'server': display_server or '—',
+                'waf_detected': waf_detected,
+                'waf_provider': waf_provider,
+                'waf_badge': waf_badge,
+                'waf_evidence': waf_evidence,
+                'ip': resolved_ip,
+                'response_time_ms': elapsed_ms,
                 'url': final_url,
                 'protocol': 'https' if final_url.startswith('https') else 'http',
                 'error': None
@@ -104,9 +162,23 @@ def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str =
     except Exception:
         pass
 
+    waf_detected = False
+    waf_provider = ""
+    waf_badge = "waf"
+    dns_ips = dns_info.get('ips', [])
+    if resolved_ip and resolved_ip not in dns_ips:
+        dns_ips.append(resolved_ip)
+
+    if dns_ips:
+        ip_intel_res = classify_ips(dns_ips)
+        if ip_intel_res.get('is_cdn'):
+            waf_detected = True
+            waf_provider = ip_intel_res.get('waf_provider', '')
+            waf_badge = ip_intel_res.get('badge_type', 'waf')
+
     if dns_info.get('alive'):
         resolver_str = dns_info.get('resolver', 'Public DNS')
-        ip_hint = f" [{dns_info['ips'][0]}]" if dns_info.get('ips') else ""
+        ip_hint = f" [{dns_ips[0]}]" if dns_ips else ""
         error_msg = f"Port 80/443 closed (DNS Live via {resolver_str}{ip_hint})"
         dns_status = 'resolved'
         dns_resolver = resolver_str
@@ -121,13 +193,17 @@ def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str =
         'alive': False,
         'status_code': 0,
         'title': '—',
-        'server': '—',
+        'server': waf_provider if waf_detected else '—',
+        'waf_detected': waf_detected,
+        'waf_provider': waf_provider,
+        'waf_badge': waf_badge,
+        'ip': dns_ips[0] if dns_ips else resolved_ip,
         'url': f'http://{host}',
         'protocol': 'none',
         'error': error_msg,
         'dns_status': dns_status,
         'dns_resolver': dns_resolver,
-        'dns_ips': dns_info.get('ips', [])
+        'dns_ips': dns_ips
     }
 
 

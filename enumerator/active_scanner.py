@@ -11,6 +11,7 @@ import time
 import uuid
 import socket
 import asyncio
+import threading
 from pathlib import Path
 from functools import lru_cache
 from typing import List, Set
@@ -212,11 +213,32 @@ def dns_brute_force(
 
     t_start = time.time()
     
-    # Launch async event loop
+    # Launch async event loop safely (handle case where a loop is already running)
     try:
-        discovered, resolved_count, nxdomain_count, timeout_count, done_count = asyncio.run(
-            _async_dns_brute_force(candidates, effective_workers, log)
-        )
+        try:
+            asyncio.get_running_loop()
+            # An event loop is already running (e.g. inside WSGI/async context).
+            # Run the coroutine in a dedicated thread with its own event loop.
+            result_container = [None]
+            exc_container = [None]
+            def _run_in_thread():
+                try:
+                    result_container[0] = asyncio.run(
+                        _async_dns_brute_force(candidates, effective_workers, log)
+                    )
+                except Exception as e:
+                    exc_container[0] = e
+            t = threading.Thread(target=_run_in_thread)
+            t.start()
+            t.join()
+            if exc_container[0]:
+                raise exc_container[0]
+            discovered, resolved_count, nxdomain_count, timeout_count, done_count = result_container[0]
+        except RuntimeError:
+            # No event loop running — safe to use asyncio.run() directly
+            discovered, resolved_count, nxdomain_count, timeout_count, done_count = asyncio.run(
+                _async_dns_brute_force(candidates, effective_workers, log)
+            )
     except Exception as e:
         log(f"[!] Async execution failed: {str(e)}")
         return [], f"Async error: {str(e)}", 0

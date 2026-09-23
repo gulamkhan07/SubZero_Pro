@@ -58,14 +58,14 @@ TOOL_ALIASES = {
 AMASS_DEEP_TIMEOUT_MINUTES = 15
 PROVIDER_TIMEOUTS = {
     'amass': 930,
-    'subfinder': 70,
-    'subfinder_all': 140,
+    'subfinder': 120,
+    'subfinder_all': 180,
     'sslmate': 30,
     'crtsh': 30,
     'rapiddns': 20,
     'hackertarget': 15,
     'otx': 12,
-    'urlscan': 12,
+    'urlscan': 30,
 }
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SUBFINDER_APPDATA = PROJECT_ROOT / '.runtime'
@@ -159,7 +159,8 @@ def _run_cmd(args, timeout, label, env=None):
     except subprocess.TimeoutExpired as exc:
         partial = (exc.stdout or '') if isinstance(exc.stdout, str) else (exc.stdout or b'').decode(errors='ignore')
         values = [x.strip() for x in partial.splitlines() if x.strip()]
-        return values, f'{label} timed out after {timeout}s (partial results kept).', len(values)
+        err = None if len(values) > 0 else f'{label} timed out after {timeout}s.'
+        return values, err, len(values)
 
 
 def _command_error(label, returncode, stderr):
@@ -180,7 +181,7 @@ def subfinder(domain):
         env['APPDATA'] = str(SUBFINDER_APPDATA)
         env['LOCALAPPDATA'] = str(SUBFINDER_APPDATA)
     return _run_cmd(
-        ['subfinder', '-d', domain, '-silent', '-duc', '-timeout', '8', '-max-time', '1'],
+        ['subfinder', '-d', domain, '-silent', '-duc', '-timeout', '6', '-max-time', '1'],
         PROVIDER_TIMEOUTS['subfinder'], 'Subfinder', env=env
     )
 

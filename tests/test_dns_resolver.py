@@ -66,13 +66,27 @@ class TestMultiDNSResolver(unittest.TestCase):
 
     def test_specific_resolver_selection(self):
         """Allows targeting a specific provider such as Cloudflare or Google."""
-        res_cf = check_domain_multi_resolver("google.com", specific_resolver="cloudflare")
-        self.assertEqual(res_cf["status"], "resolved")
-        self.assertIn("Cloudflare", res_cf["resolver"])
+        from unittest.mock import patch
+        with patch("enumerator.dns_resolver._query_resolver_single", return_value={
+            "status": "resolved", "name": "Google Primary", "provider": "Google",
+            "ip": "8.8.8.8", "ips": ["142.250.190.46"], "cname": "", "record_type": "A", "latency_ms": 15.0
+        }):
+            res_goog = check_domain_multi_resolver("google.com", specific_resolver="google")
+            self.assertEqual(res_goog["status"], "resolved")
+            self.assertIn("Google", res_goog["resolver"])
 
-        res_goog = check_domain_multi_resolver("google.com", specific_resolver="google")
-        self.assertEqual(res_goog["status"], "resolved")
-        self.assertIn("Google", res_goog["resolver"])
+        with patch("enumerator.dns_resolver._query_resolver_single", return_value={
+            "status": "resolved", "name": "Cloudflare Primary", "provider": "Cloudflare",
+            "ip": "1.1.1.1", "ips": ["142.250.190.46"], "cname": "", "record_type": "A", "latency_ms": 12.0
+        }):
+            res_cf = check_domain_multi_resolver("google.com", specific_resolver="cloudflare")
+            self.assertEqual(res_cf["status"], "resolved")
+            self.assertIn("Cloudflare", res_cf["resolver"])
+
+        # System resolver works on local host
+        res_sys = check_domain_multi_resolver("google.com", specific_resolver="system")
+        self.assertEqual(res_sys["status"], "resolved")
+        self.assertEqual(res_sys["provider"], "System")
 
         # Targeted query on non-existent domain queries only that provider
         res_fake_cf = check_domain_multi_resolver("nonexistent-test-1234981.xyz", specific_resolver="cloudflare")

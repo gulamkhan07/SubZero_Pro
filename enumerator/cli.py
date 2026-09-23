@@ -32,6 +32,10 @@ from enumerator.cname_auditor import audit_hosts
 from enumerator.archive_miner import mine_archive_urls
 from enumerator.permutation_engine import generate_permutations
 from enumerator.request_utils import check_network_connectivity
+from enumerator.tls_scraper import scrape_tls_sans
+from enumerator.wildcard_detector import detect_wildcard_dns, is_wildcard_false_positive
+from enumerator.origin_verifier import verify_origin_candidates
+from enumerator.ptr_sweeper import sweep_ips_for_ptrs
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +157,10 @@ def run_cli_scan(
     ip_intel: bool = False,
     mine_archives: bool = False,
     run_permutations: bool = False,
+    tls_san: bool = False,
+    wildcard: bool = False,
+    verify_origin: bool = False,
+    ptr_sweep: bool = False,
     silent: bool = False,
     verbose: bool = False,
 ) -> Dict[str, Any]:
@@ -236,9 +244,22 @@ def run_cli_scan(
         except Exception as exc:
             errors.append(f"permutations: {exc}")
 
+    # Wildcard DNS Detection (if requested)
+    wc_info = {'is_wildcard': False, 'wildcard_ips': [], 'wildcard_cnames': []}
+    if wildcard:
+        log_info(f"Checking for wildcard DNS catch-all (*.{domain})...", silent)
+        try:
+            wc_info = detect_wildcard_dns(domain, timeout=2.0)
+            if wc_info.get('is_wildcard'):
+                log_warn(f"Wildcard DNS detected (*.{domain}) -> IPs: {', '.join(wc_info['wildcard_ips'])}", silent)
+            else:
+                log_info(f"No wildcard DNS detected for {domain}", silent)
+        except Exception as exc:
+            errors.append(f"wildcard_detector: {exc}")
+
     # DNS Resolution Validation (if requested)
     dns_records: Dict[str, Dict[str, Any]] = {}
-    if resolve_dns and found_by:
+    if (resolve_dns or tls_san or ptr_sweep) and found_by:
         res_label = selected_resolver.upper() if selected_resolver != 'all' else 'Tier-1 Multi-Resolvers'
         log_info(f"Resolving {len(found_by)} subdomains via {res_label}...", silent)
         with ThreadPoolExecutor(max_workers=20) as pool:
@@ -246,6 +267,46 @@ def run_cli_scan(
             for future in as_completed(futures):
                 host = futures[future]
                 dns_records[host] = future.result()
+
+    # Direct TLS SAN Certificate Scraping (if requested)
+    if tls_san and dns_records:
+        resolved_ips = list(dict.fromkeys(ip for rec in dns_records.values() for ip in rec.get('ips', []) if ip))
+        if resolved_ips:
+            log_info(f"Probing direct TLS SAN certificates across {len(resolved_ips[:15])} live IPs...", silent)
+            try:
+                tls_subs = scrape_tls_sans(resolved_ips[:15], domain, max_workers=8, timeout=2.5)
+                new_tls = [s for s in tls_subs if s not in found_by and s != domain]
+                if new_tls:
+                    log_success(f"TLS SAN scraper uncovered {len(new_tls)} certificate hostnames", silent)
+                    for s in new_tls:
+                        found_by.setdefault(s, set()).add('tls-san')
+                    if resolve_dns:
+                        with ThreadPoolExecutor(max_workers=min(8, len(new_tls))) as pool:
+                            fut_map = {pool.submit(check_domain_multi_resolver, s, selected_resolver): s for s in new_tls}
+                            for f in as_completed(fut_map):
+                                dns_records[fut_map[f]] = f.result()
+            except Exception as exc:
+                errors.append(f"tls_san: {exc}")
+
+    # Reverse DNS (PTR) Subnet Sweeper (if requested)
+    if ptr_sweep and dns_records:
+        candidate_ips = list(dict.fromkeys(ip for rec in dns_records.values() for ip in rec.get('ips', []) if ip))
+        if candidate_ips:
+            log_info("Sweeping /24 subnets via Reverse DNS (PTR)...", silent)
+            try:
+                ptr_res = sweep_ips_for_ptrs(candidate_ips[:5], domain, sweep_surrounding=True, window=3, max_workers=15)
+                new_ptrs = [s for s in ptr_res.get('discovered_subdomains', []) if s not in found_by and s != domain]
+                if new_ptrs:
+                    log_success(f"PTR subnet sweep uncovered {len(new_ptrs)} reverse DNS hostnames", silent)
+                    for s in new_ptrs:
+                        found_by.setdefault(s, set()).add('ptr-sweep')
+                    if resolve_dns:
+                        with ThreadPoolExecutor(max_workers=min(8, len(new_ptrs))) as pool:
+                            fut_map = {pool.submit(check_domain_multi_resolver, s, selected_resolver): s for s in new_ptrs}
+                            for f in as_completed(fut_map):
+                                dns_records[fut_map[f]] = f.result()
+            except Exception as exc:
+                errors.append(f"ptr_sweep: {exc}")
 
     # CNAME Takeover Audit (if requested)
     cname_results: List[Dict[str, Any]] = []
@@ -298,14 +359,21 @@ def run_cli_scan(
             item['dns_status'] = status
             item['dns_resolver'] = dns_info.get('resolver', '')
             ips = dns_info.get('ips', [])
+            cname = dns_info.get('cname', '')
             item['ips'] = ips
-            if ip_intel and ips:
-                intel = classify_ips(ips)
+            item['cname'] = cname
+            if wildcard:
+                item['is_wildcard_catchall'] = is_wildcard_false_positive(ips, cname, wc_info)
+            if ip_intel and (ips or cname):
+                intel = classify_ips(ips, cname=cname)
                 item['ip_intel'] = intel
                 item['primary_ip'] = intel.get('primary_ip', '')
                 item['waf_provider'] = intel.get('waf_provider', 'Direct Server')
                 item['is_origin'] = intel.get('is_origin', True)
                 item['is_cdn'] = intel.get('is_cdn', False)
+                item['country_name'] = intel.get('country_name', 'Global')
+                item['country_code'] = intel.get('country_code', '')
+                item['country_flag'] = intel.get('country_flag', '🌐')
 
         if host in probe_results:
             pr = probe_results[host]
@@ -315,6 +383,22 @@ def run_cli_scan(
             item['http_server'] = pr.get('server')
 
         results.append(item)
+
+    # True Origin IP Active Verification (if requested)
+    if verify_origin and results:
+        candidate_origin_ips = list(dict.fromkeys(r.get('primary_ip') for r in results if r.get('is_origin') and r.get('primary_ip')))
+        if candidate_origin_ips:
+            log_info(f"Actively verifying True Origin IPs against WAF bypass for {len(candidate_origin_ips[:10])} candidates...", silent)
+            try:
+                ver_map = verify_origin_candidates(candidate_origin_ips[:10], domain, max_workers=8, timeout=3.0)
+                for r in results:
+                    pip = r.get('primary_ip')
+                    if pip in ver_map and ver_map[pip].get('is_confirmed_origin'):
+                        r['is_confirmed_origin'] = True
+                        r['confirmed_origin'] = ver_map[pip]
+                        log_success(f"Confirmed True Origin IP (WAF Bypass): {pip} for {r['subdomain']}", silent)
+            except Exception as exc:
+                errors.append(f"verify_origin: {exc}")
 
     elapsed = round(time.time() - start_time, 2)
     return {
@@ -396,6 +480,8 @@ def display_terminal_summary(scan_data: Dict[str, Any], only_resolved: bool = Fa
     resolved_count = sum(1 for r in results if r.get('dns_status') == 'resolved')
     cdn_count = sum(1 for r in results if r.get('is_cdn'))
     origin_count = sum(1 for r in results if r.get('is_origin') and r.get('dns_status') == 'resolved')
+    confirmed_origin_count = sum(1 for r in results if r.get('is_confirmed_origin'))
+    wildcard_catchall_count = sum(1 for r in results if r.get('is_wildcard_catchall'))
 
     sys.stderr.write(f"\n{Colors.BOLD}{Colors.CYAN}══════════════════════════════════════════════════════════════════════{Colors.RESET}\n")
     sys.stderr.write(f"  {Colors.BOLD}SubZero Reconnaissance Summary — {scan_data.get('domain')}{Colors.RESET}\n")
@@ -406,6 +492,10 @@ def display_terminal_summary(scan_data: Dict[str, Any], only_resolved: bool = Fa
     if cdn_count or origin_count:
         sys.stderr.write(f"  Direct Origin Servers       : {Colors.YELLOW}{origin_count}{Colors.RESET}\n")
         sys.stderr.write(f"  Cloudflare / CDN Edge IPs   : {Colors.BLUE}{cdn_count}{Colors.RESET}\n")
+    if confirmed_origin_count:
+        sys.stderr.write(f"  🔥 Verified True Origin IPs : {Colors.GREEN}{confirmed_origin_count}{Colors.RESET} (WAF Bypass Verified)\n")
+    if wildcard_catchall_count:
+        sys.stderr.write(f"  ⚠️ Wildcard Catchalls Filtered: {Colors.YELLOW}{wildcard_catchall_count}{Colors.RESET}\n")
     sys.stderr.write(f"  Execution Time              : {scan_data.get('elapsed')}s\n")
 
     # Source breakdown
@@ -502,6 +592,10 @@ def build_parser() -> argparse.ArgumentParser:
     security_group.add_argument("--probe", dest="probe", action="store_true", help="Probe HTTP/HTTPS alive status, page title, and server headers")
     security_group.add_argument("--ip-intel", dest="ip_intel", action="store_true", help="Classify IPs as Direct Origin server vs Cloudflare/CDN/WAF")
     security_group.add_argument("--archive", dest="archive", action="store_true", help="Mine historical URLs from Wayback Machine & AlienVault")
+    security_group.add_argument("--tls-san", dest="tls_san", action="store_true", help="Direct TLS SAN Certificate Scraper across port 443 of resolved IPs")
+    security_group.add_argument("--wildcard", dest="wildcard", action="store_true", help="Detect DNS wildcard catch-all (*.domain) and flag false positives")
+    security_group.add_argument("--verify-origin", dest="verify_origin", action="store_true", help="Actively probe candidate Origin IPs (Host header) to verify True Origin / WAF bypass")
+    security_group.add_argument("--ptr-sweep", dest="ptr_sweep", action="store_true", help="Reverse DNS (PTR) subnet sweeper on /24 ranges of candidate IPs")
 
     target_group.add_argument("-i", "--interactive", "--wizard", dest="interactive", action="store_true", help="Launch interactive step-by-step Cyber Recon Wizard to select tools & options")
 
@@ -820,13 +914,17 @@ def main(argv=None):
             active_dns=args.active,
             wordlist_size=args.wordlist,
             active_threads=args.threads,
-            resolve_dns=args.resolve or args.only_resolved,
+            resolve_dns=args.resolve or args.only_resolved or args.tls_san or args.ptr_sweep,
             selected_resolver=args.resolver,
             audit_cnames=args.cname,
             probe_http=args.probe,
-            ip_intel=args.ip_intel,
+            ip_intel=args.ip_intel or args.verify_origin,
             mine_archives=args.archive,
             run_permutations=args.permute,
+            tls_san=args.tls_san,
+            wildcard=args.wildcard,
+            verify_origin=args.verify_origin,
+            ptr_sweep=args.ptr_sweep,
             silent=args.silent,
             verbose=args.verbose,
         )

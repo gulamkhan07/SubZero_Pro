@@ -284,41 +284,67 @@
 
       <!-- Results Section Card -->
       <section id="out" class="card out-card hidden">
-        <div class="top">
-          <div>
-            <div class="count-row">
-              <h2 id="count">0 Subdomains</h2>
-              <span id="cached-tag" class="badge badge-cached hidden">Cached</span>
+        <!-- 1. Dedicated MAIN TARGET DOMAIN Block (Always at the very top of findings) -->
+        <div class="results-block-main">
+          <div class="block-section-heading">
+            <span class="heading-icon">🎯</span>
+            <span class="heading-title">MAIN TARGET DOMAIN</span>
+            <span class="badge badge-apex-pill">APEX ROOT</span>
+          </div>
+          <div id="main-domain-showcase" class="main-domain-card">
+            <div class="main-domain-inner">
+              <div class="main-domain-left">
+                <span class="badge badge-main-domain">TARGET APEX</span>
+                <strong id="main-domain-host" class="main-domain-host">example.com</strong>
+              </div>
+              <div id="main-domain-meta" class="main-domain-right"></div>
             </div>
-            <p id="source-stats" class="muted stats-line"></p>
-          </div>
-          <div class="actions">
-            <a id="link-html" href="#" class="action-btn action-btn-html" download title="Download Executive HTML Report">HTML Report</a>
-            <a id="link-txt" href="#" class="action-btn" download>TXT</a>
-            <a id="link-csv" href="#" class="action-btn" download>CSV</a>
-            <a id="link-json" href="#" class="action-btn" download>JSON</a>
-            <a id="link-ips" href="#" class="action-btn action-btn-ips" download title="Download clean list of resolved unique IP addresses">IPs (.txt)</a>
-            <button type="button" id="btn-to-permutations" class="action-btn action-btn-permute" onclick="sendDiscoveredToPermutations()" title="Mutate discovered subdomains to uncover hidden staging/dev assets">Permute</button>
-            <button type="button" id="btn-to-archive" class="action-btn action-btn-archive" onclick="sendDomainToArchiveMiner()" title="Extract historical URLs & sensitive endpoints from Internet Archive">Archive URLs</button>
-            <button type="button" id="btn-to-auditor" class="action-btn action-btn-auditor" onclick="sendDiscoveredToAuditor()" title="Audit DNS CNAMEs for dangling cloud pointers">CNAME Audit</button>
-            <button type="button" id="btn-to-prober" class="action-btn action-btn-probe" onclick="sendDiscoveredToProber()" title="Send discovered subdomains to the Live HTTP Prober">Probe Status</button>
-            <button type="button" id="copy-ips-btn" class="action-btn action-btn-copy-ips" onclick="copyDiscoveredIPs()" title="Copy all unique resolved IPs to clipboard">Copy IPs</button>
-            <button type="button" id="copy-btn" class="copy-all-btn" onclick="copyAll()">Copy Subs</button>
           </div>
         </div>
 
-        <!-- Real-Time Filter Bar -->
-        <div class="filter-row">
-          <div class="filter-wrapper">
-            <span class="filter-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-            <input id="filter-input" type="text" placeholder="Filter subdomains (e.g. admin, api, vpn, mail)..." oninput="filterResults()">
-            <button type="button" id="filter-clear-btn" class="filter-clear hidden" onclick="clearFilter()">✕</button>
+        <!-- 2. Dedicated DISCOVERED SUBDOMAINS Block (Directly below Main Domain) -->
+        <div class="results-block-subs">
+          <div class="top">
+            <div>
+              <div class="count-row">
+                <span class="subs-title-icon">🔍</span>
+                <h2 id="count">0 Subdomains</h2>
+                <span id="cached-tag" class="badge badge-cached hidden">Cached</span>
+              </div>
+              <p id="source-stats" class="muted stats-line"></p>
+            </div>
+            <div class="actions">
+              <a id="link-html" href="#" class="action-btn action-btn-html" download title="Download Executive HTML Report">HTML Report</a>
+              <a id="link-txt" href="#" class="action-btn" download>TXT</a>
+              <a id="link-csv" href="#" class="action-btn" download>CSV</a>
+              <a id="link-json" href="#" class="action-btn" download>JSON</a>
+              <a id="link-ips" href="#" class="action-btn action-btn-ips" download title="Download clean list of resolved unique IP addresses">IPs (.txt)</a>
+              <button type="button" id="btn-to-permutations" class="action-btn action-btn-permute" onclick="sendDiscoveredToPermutations()" title="Mutate discovered subdomains to uncover hidden staging/dev assets">Permute</button>
+              <button type="button" id="btn-to-archive" class="action-btn action-btn-archive" onclick="sendDomainToArchiveMiner()" title="Extract historical URLs & sensitive endpoints from Internet Archive">Archive URLs</button>
+              <button type="button" id="btn-to-auditor" class="action-btn action-btn-auditor" onclick="sendDiscoveredToAuditor()" title="Audit DNS CNAMEs for dangling cloud pointers">CNAME Audit</button>
+              <button type="button" id="btn-to-prober" class="action-btn action-btn-probe" onclick="sendDiscoveredToProber()" title="Send discovered subdomains to the Live HTTP Prober">Probe Status</button>
+              <button type="button" id="btn-open-diff" class="action-btn action-btn-diff" onclick="openDiffModal()" title="Compare current scan against previous scans to identify newly added (+) or removed (-) subdomains">Delta Diff</button>
+              <button type="button" id="copy-ips-btn" class="action-btn action-btn-copy-ips" onclick="copyDiscoveredIPs()" title="Copy all unique resolved IPs to clipboard">Copy IPs</button>
+              <button type="button" id="copy-btn" class="copy-all-btn" onclick="copyAll()">Copy Subs</button>
+            </div>
           </div>
-          <div id="filter-counter" class="filter-counter hidden">Showing 0 of 0</div>
-        </div>
 
-        <div id="warnings" class="warn hidden"></div>
-        <div id="list" class="list"></div>
+          <!-- Real-Time Filter Bar -->
+          <div class="filter-row">
+            <div class="filter-wrapper">
+              <span class="filter-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+              <input id="filter-input" type="text" placeholder="Filter subdomains (e.g. admin, api, vpn, mail)..." oninput="filterResults()">
+              <button type="button" id="filter-clear-btn" class="filter-clear hidden" onclick="clearFilter()">✕</button>
+            </div>
+            <div id="filter-counter" class="filter-counter hidden">Showing 0 of 0</div>
+          </div>
+
+          <!-- Discovered Subdomains List Container (#001, #002...) -->
+          <div id="list" class="list"></div>
+
+          <!-- Optional Provider Notes: Collapsible, subtle, unobtrusive at the bottom -->
+          <div id="warnings" class="warn-collapsible hidden"></div>
+        </div>
       </section>
     </div>
 
@@ -923,6 +949,63 @@
         </div>
       </div>
     </footer>
+
+    <!-- Interactive Scan Comparison & Delta Diff Modal -->
+    <div id="diff-modal" class="modal-backdrop hidden" onclick="if(event.target === this) closeDiffModal();">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Scan Delta Diff & Evolution Tracker</span>
+          </h3>
+          <button type="button" class="modal-close-btn" onclick="closeDiffModal()" title="Close dialog">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="diff-selector-row">
+            <select id="modal-diff-select-a" class="cyber-select" title="Older / Baseline Scan">
+              <option value="">Select Baseline Scan (Older)...</option>
+            </select>
+            <span style="font-weight:700; color:var(--muted); font-size:12px;">VS</span>
+            <select id="modal-diff-select-b" class="cyber-select" title="Newer / Comparison Scan">
+              <option value="">Select Comparison Scan (Newer)...</option>
+            </select>
+            <button type="button" class="btn-primary" style="padding: 6px 16px; font-size: 12.5px;" onclick="runModalDiff()">
+              <span>Compare</span>
+            </button>
+          </div>
+
+          <div id="modal-diff-metrics" class="diff-metrics-summary hidden">
+            <div class="diff-stat-card stat-added">
+              <div id="modal-stat-added" class="diff-stat-num">+0</div>
+              <div class="diff-stat-lbl">New Subdomains Added</div>
+            </div>
+            <div class="diff-stat-card stat-removed">
+              <div id="modal-stat-removed" class="diff-stat-num">-0</div>
+              <div class="diff-stat-lbl">Subdomains Removed / Decommissioned</div>
+            </div>
+            <div class="diff-stat-card stat-unchanged">
+              <div id="modal-stat-unchanged" class="diff-stat-num">0</div>
+              <div class="diff-stat-lbl">Persistent / Unchanged</div>
+            </div>
+          </div>
+
+          <div id="modal-diff-lists" class="diff-lists-grid hidden">
+            <div class="diff-column">
+              <h4 class="diff-col-header" style="color: #4ade80;">🟢 Newly Discovered (+)</h4>
+              <div id="modal-diff-added-list" class="diff-item-list">
+                <div class="list-empty">None</div>
+              </div>
+            </div>
+            <div class="diff-column">
+              <h4 class="diff-col-header" style="color: #f87171;">🔴 Removed / Decommissioned (-)</h4>
+              <div id="modal-diff-removed-list" class="diff-item-list">
+                <div class="list-empty">None</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -1122,6 +1205,11 @@
       filterInput.value = '';
       clearFilter();
 
+      const outCard = document.getElementById('out');
+      if (outCard) outCard.classList.add('hidden');
+      const mainShowcaseReset = document.getElementById('main-domain-showcase');
+      if (mainShowcaseReset) mainShowcaseReset.classList.add('hidden');
+
       lastLogIndex = 0;
       allReceivedLogs = [];
       const counterEl = document.getElementById('term-counter');
@@ -1293,7 +1381,7 @@
       const stats = Object.entries(data.sources || {}).map(([k, v]) => `${k}: ${v}`).join('  •  ');
       document.getElementById('source-stats').textContent = stats || 'No external sources returned results';
 
-      // Warnings & Provider Notices
+      // Warnings & Provider Notices (Subtle, collapsible notes that don't disrupt presentations)
       const warningsEl = document.getElementById('warnings');
       if (data.errors && data.errors.length > 0) {
         const escapeText = str => {
@@ -1303,35 +1391,82 @@
         };
 
         const itemsHtml = data.errors.map(err => {
-          let badge = 'NOTICE';
-          let badgeClass = 'warn-tag-notice';
-          const lower = String(err).toLowerCase();
-          if (lower.includes('timed out') || lower.includes('timeout')) {
-            badge = 'TIMEOUT'; badgeClass = 'warn-tag-timeout';
-          } else if (lower.includes('rate limit') || lower.includes('429') || lower.includes('exceeded')) {
-            badge = 'RATE LIMIT'; badgeClass = 'warn-tag-ratelimit';
-          } else if (lower.includes('connection') || lower.includes('dns') || lower.includes('offline') || lower.includes('refused')) {
-            badge = 'NETWORK'; badgeClass = 'warn-tag-network';
-          } else if (lower.includes('ssl') || lower.includes('proxy')) {
-            badge = 'SSL / PROXY'; badgeClass = 'warn-tag-ssl';
-          }
-          return `<div class="warn-item"><span class="warn-tag ${badgeClass}">${badge}</span><span class="warn-msg">${escapeText(err)}</span></div>`;
+          return `<div class="warn-item"><span class="warn-tag warn-tag-notice">DIAGNOSTIC</span><span class="warn-msg">${escapeText(err)}</span></div>`;
         }).join('');
 
         warningsEl.innerHTML = `
-          <div class="warn-header">
-            <div class="warn-title">
-              <span class="warn-icon">⚡</span>
-              <span>External OSINT Notices (${data.errors.length})</span>
-            </div>
-            <span class="warn-note">Non-fatal provider notices; partial findings and other active engines preserved below.</span>
-          </div>
-          <div class="warn-list">${itemsHtml}</div>
+          <details class="warn-details">
+            <summary class="warn-summary">
+              <span class="warn-summary-title">⚡ Optional OSINT Telemetry Notes (${data.errors.length})</span>
+              <span class="warn-summary-hint">Click to expand</span>
+            </summary>
+            <div class="warn-list" style="margin-top: 10px;">${itemsHtml}</div>
+          </details>
         `;
         warningsEl.classList.remove('hidden');
       } else {
         warningsEl.classList.add('hidden');
         warningsEl.innerHTML = '';
+      }
+
+      // Render Dedicated Main Target Domain Showcase Card (Always Visible & Prominent)
+      const mainShowcase = document.getElementById('main-domain-showcase');
+      const mainHostEl = document.getElementById('main-domain-host');
+      const mainMetaEl = document.getElementById('main-domain-meta');
+      const m = data.main_domain || { domain: data.domain, subdomain: data.domain };
+      if (mainShowcase && mainHostEl && mainMetaEl) {
+        mainHostEl.textContent = m.domain || m.subdomain || data.domain;
+        mainMetaEl.innerHTML = '';
+
+        const resolvedIps = m.dns_ips || (m.primary_ip ? [m.primary_ip] : []);
+        if (resolvedIps.length > 0) {
+          const ipBadge = document.createElement('span');
+          ipBadge.className = 'badge badge-ip';
+          ipBadge.textContent = m.primary_ip || resolvedIps[0];
+          ipBadge.title = `Resolved IP(s): ${resolvedIps.join(', ')}`;
+          mainMetaEl.appendChild(ipBadge);
+
+          if (m.cname) {
+            const cnameBadge = document.createElement('span');
+            cnameBadge.className = 'badge badge-cname';
+            cnameBadge.textContent = `CNAME: ${m.cname}`;
+            cnameBadge.title = `Canonical Name: ${m.cname}`;
+            mainMetaEl.appendChild(cnameBadge);
+          }
+
+          const wafBadge = document.createElement('span');
+          if (m.is_cdn || (m.ip_intel && m.ip_intel.is_cdn)) {
+            const btype = (m.ip_intel && m.ip_intel.badge_type) ? m.ip_intel.badge_type : 'akamai';
+            wafBadge.className = `badge badge-waf badge-waf-${btype}`;
+            wafBadge.textContent = m.waf_provider || 'WAF Protected';
+            wafBadge.title = `Protected by: ${m.waf_provider}`;
+            mainMetaEl.appendChild(wafBadge);
+          } else if (m.is_origin || m.dns === 'resolved') {
+            wafBadge.className = 'badge badge-origin-ip';
+            wafBadge.textContent = 'Direct Origin IP 🔥';
+            wafBadge.title = 'Direct Origin Server IP (Potential WAF Bypass Target!)';
+            mainMetaEl.appendChild(wafBadge);
+          }
+
+          if (m.country_flag) {
+            const geoBadge = document.createElement('span');
+            geoBadge.className = 'badge badge-geo';
+            geoBadge.textContent = `${m.country_flag} ${m.country_code || ''}`.trim();
+            geoBadge.title = `Target Apex Location: ${m.country_name || 'Global'}`;
+            mainMetaEl.appendChild(geoBadge);
+          }
+        } else if (m.dns && m.dns !== 'not-checked') {
+          const dnsBadge = document.createElement('span');
+          dnsBadge.className = (m.dns === 'resolved') ? 'badge badge-dns-live' : 'badge badge-dns-dead';
+          dnsBadge.textContent = (m.dns === 'resolved') ? 'Live (Resolved)' : 'Dead / Unresolved';
+          mainMetaEl.appendChild(dnsBadge);
+        } else {
+          const targetBadge = document.createElement('span');
+          targetBadge.className = 'badge badge-dns-live';
+          targetBadge.textContent = 'Target Apex 🌐';
+          mainMetaEl.appendChild(targetBadge);
+        }
+        mainShowcase.classList.remove('hidden');
       }
 
       currentResults = data.results || [];
@@ -1428,6 +1563,30 @@
             wafBadge.title = `Direct Origin Host IP (Potential WAF Bypass Target!): ${row.dns_ips.join(', ')}`;
             metaSpan.appendChild(wafBadge);
           }
+
+          if (row.country_flag) {
+            const geoBadge = document.createElement('span');
+            geoBadge.className = 'badge badge-geo';
+            geoBadge.textContent = `${row.country_flag} ${row.country_code || ''}`.trim();
+            geoBadge.title = `Geographic Location: ${row.country_name || 'Global'} (${row.country_code || ''})`;
+            metaSpan.appendChild(geoBadge);
+          }
+
+          if (row.is_confirmed_origin) {
+            const originConfirmedBadge = document.createElement('span');
+            originConfirmedBadge.className = 'badge badge-confirmed-origin';
+            originConfirmedBadge.textContent = '🔥 Confirmed Origin';
+            originConfirmedBadge.title = 'Active WAF Bypass Verified! Host header responded with match to target domain.';
+            metaSpan.appendChild(originConfirmedBadge);
+          }
+
+          if (row.is_wildcard_catchall) {
+            const wcBadge = document.createElement('span');
+            wcBadge.className = 'badge badge-wildcard';
+            wcBadge.textContent = '⚠️ Wildcard Catchall';
+            wcBadge.title = 'Wildcard DNS catch-all false positive (*.target)';
+            metaSpan.appendChild(wcBadge);
+          }
         } else if (row.dns && row.dns !== 'not-checked') {
           const dnsBadge = document.createElement('span');
           if (row.dns === 'resolved') {
@@ -1473,7 +1632,12 @@
         return;
       }
       filterClearBtn.classList.remove('hidden');
-      const filtered = currentResults.filter(r => r.subdomain.toLowerCase().includes(q));
+      const filtered = currentResults.filter(r => {
+        return (r.subdomain && r.subdomain.toLowerCase().includes(q)) ||
+               (r.primary_ip && r.primary_ip.toLowerCase().includes(q)) ||
+               (r.waf_provider && r.waf_provider.toLowerCase().includes(q)) ||
+               (r.is_main_domain && 'main domain'.includes(q));
+      });
       filterCounter.classList.remove('hidden');
       filterCounter.textContent = `Showing ${filtered.length} of ${currentResults.length}`;
       renderResults(filtered);
@@ -2040,6 +2204,9 @@
         } else if (r.status_code >= 300 && r.status_code < 400) {
           badgeClass = 'badge-subfinder';
           statusLabel = `${r.status_code} Redirect`;
+        } else if (r.status_code === 403 && r.waf_detected) {
+          badgeClass = 'badge-waf-blocked';
+          statusLabel = `403 WAF Blocked 🛡️`;
         } else if (r.status_code >= 400 && r.status_code < 500) {
           badgeClass = 'badge-hackertarget';
           statusLabel = `${r.status_code} Auth/Client`;
@@ -2052,7 +2219,13 @@
         }
 
         const titleText = r.title ? r.title : `<span style="color:var(--muted); font-style:italic;">None</span>`;
-        const serverText = r.server ? r.server : `<span style="color:var(--muted); font-style:italic;">Hidden</span>`;
+        let serverText = `<span style="color:var(--muted); font-style:italic;">Hidden</span>`;
+        if (r.waf_detected && r.waf_provider) {
+          const btype = r.waf_badge || 'waf';
+          serverText = `<span class="badge badge-waf badge-waf-${btype}">${r.waf_provider}</span>`;
+        } else if (r.server && r.server !== '—') {
+          serverText = `<span style="font-size:12px; color:var(--text-dim);">${r.server}</span>`;
+        }
         const latencyText = r.response_time_ms ? `${r.response_time_ms} ms` : '-';
         const targetUrl = r.url || `https://${r.host}`;
 
@@ -2060,7 +2233,7 @@
           <td><strong style="font-family:var(--font-mono); font-size:13px;">${r.host}</strong></td>
           <td><span class="badge ${badgeClass}">${statusLabel}</span></td>
           <td style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${r.title || ''}">${titleText}</td>
-          <td><span style="font-size:12px; color:var(--text-dim);">${serverText}</span></td>
+          <td>${serverText}</td>
           <td><span style="font-family:var(--font-mono); font-size:12px; color:var(--accent-cyan);">${latencyText}</span></td>
           <td>
             ${r.status_code ? `<a href="${targetUrl}" target="_blank" rel="noopener noreferrer" class="action-btn" style="font-size:11px; padding:3px 8px;">Visit ↗</a>` : '-'}
@@ -2081,6 +2254,7 @@
         return (r.host && r.host.toLowerCase().includes(q)) ||
                (r.title && r.title.toLowerCase().includes(q)) ||
                (r.server && r.server.toLowerCase().includes(q)) ||
+               (r.waf_provider && r.waf_provider.toLowerCase().includes(q)) ||
                (r.status_code && r.status_code.toString().includes(q));
       });
       renderProberResults(filtered);
@@ -2663,6 +2837,116 @@
         }
       } catch (e) {
         console.error(e);
+      }
+    }
+
+    /* ==========================================================================
+       DIFF COMPARISON MODAL CONTROLLER
+       ========================================================================== */
+    async function openDiffModal() {
+      const modal = document.getElementById('diff-modal');
+      modal.classList.remove('hidden');
+      const selA = document.getElementById('modal-diff-select-a');
+      const selB = document.getElementById('modal-diff-select-b');
+      selA.innerHTML = '<option value="">Loading history...</option>';
+      selB.innerHTML = '<option value="">Loading history...</option>';
+
+      try {
+        const domain = (document.getElementById('domain').value || '').trim();
+        const res = await fetch(`/api/history?domain=${encodeURIComponent(domain)}`);
+        const data = await res.json();
+        const scans = data.scans || [];
+
+        selA.innerHTML = '<option value="">Select Baseline Scan (Older)...</option>';
+        selB.innerHTML = '<option value="">Select Comparison Scan (Newer)...</option>';
+
+        if (scans.length === 0) {
+          selA.innerHTML = '<option value="">No historical scans recorded yet</option>';
+          selB.innerHTML = '<option value="">No historical scans recorded yet</option>';
+          return;
+        }
+
+        scans.forEach((s) => {
+          const optA = document.createElement('option');
+          optA.value = s.id;
+          optA.textContent = `${s.timestamp} — ${s.domain} (${s.count} subs)`;
+          selA.appendChild(optA);
+
+          const optB = document.createElement('option');
+          optB.value = s.id;
+          optB.textContent = `${s.timestamp} — ${s.domain} (${s.count} subs)`;
+          selB.appendChild(optB);
+        });
+
+        // Auto select older and newer if >= 2 scans
+        if (scans.length >= 2) {
+          selA.selectedIndex = 2; // older
+          selB.selectedIndex = 1; // newer
+          runModalDiff();
+        } else if (scans.length === 1) {
+          selA.selectedIndex = 1;
+          selB.selectedIndex = 1;
+        }
+      } catch (err) {
+        console.error('Failed to load history for diff modal', err);
+      }
+    }
+
+    function closeDiffModal() {
+      const modal = document.getElementById('diff-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function runModalDiff() {
+      const scanA = document.getElementById('modal-diff-select-a').value;
+      const scanB = document.getElementById('modal-diff-select-b').value;
+      if (!scanA || !scanB) {
+        return;
+      }
+      try {
+        const res = await fetch(`/api/history/diff?scan_a=${encodeURIComponent(scanA)}&scan_b=${encodeURIComponent(scanB)}`);
+        const data = await res.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+
+        const metricsBox = document.getElementById('modal-diff-metrics');
+        const listsBox = document.getElementById('modal-diff-lists');
+        metricsBox.classList.remove('hidden');
+        listsBox.classList.remove('hidden');
+
+        document.getElementById('modal-stat-added').textContent = `+${data.added ? data.added.length : 0}`;
+        document.getElementById('modal-stat-removed').textContent = `-${data.removed ? data.removed.length : 0}`;
+        document.getElementById('modal-stat-unchanged').textContent = `${data.unchanged ? data.unchanged.length : 0}`;
+
+        const addedList = document.getElementById('modal-diff-added-list');
+        addedList.innerHTML = '';
+        if (data.added && data.added.length > 0) {
+          data.added.forEach(s => {
+            const d = document.createElement('div');
+            d.className = 'diff-row diff-row-added';
+            d.textContent = `+ ${s}`;
+            addedList.appendChild(d);
+          });
+        } else {
+          addedList.innerHTML = '<div class="list-empty">No additions found</div>';
+        }
+
+        const removedList = document.getElementById('modal-diff-removed-list');
+        removedList.innerHTML = '';
+        if (data.removed && data.removed.length > 0) {
+          data.removed.forEach(s => {
+            const d = document.createElement('div');
+            d.className = 'diff-row diff-row-removed';
+            d.textContent = `- ${s}`;
+            removedList.appendChild(d);
+          });
+        } else {
+          removedList.innerHTML = '<div class="list-empty">No removals found</div>';
+        }
+      } catch (err) {
+        console.error('Failed to compute diff', err);
       }
     }
 
