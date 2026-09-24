@@ -301,8 +301,8 @@ def crtsh(domain):
     for url in urls:
         r = retry_request(
             url, provider='crtsh',
-            headers=headers, timeout=PROVIDER_TIMEOUTS.get('crtsh', 30),
-            max_retries=3, base_delay=2.0, max_delay=12.0, min_interval=1.0,
+            headers=headers, timeout=15,
+            max_retries=1, base_delay=1.5, max_delay=3.0, min_interval=0.5,
         )
         if r and r.status_code == 200:
             try:

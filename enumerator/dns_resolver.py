@@ -21,9 +21,9 @@ try:
 except ImportError:
     HAS_DNSPYTHON = False
 
-# Shared persistent thread pool for multi-resolver DNS lookups
-# Avoids thread creation/destruction overhead across subdomains
-_DNS_EXECUTOR = ThreadPoolExecutor(max_workers=20)
+# Shared persistent thread pools for multi-resolver DNS lookups
+_DNS_EXECUTOR = ThreadPoolExecutor(max_workers=100)
+_OS_RESOLVER_EXECUTOR = ThreadPoolExecutor(max_workers=50)
 
 
 def _shutdown_dns_executor():
@@ -31,9 +31,14 @@ def _shutdown_dns_executor():
         _DNS_EXECUTOR.shutdown(wait=False, cancel_futures=True)
     except Exception:
         pass
+    try:
+        _OS_RESOLVER_EXECUTOR.shutdown(wait=False, cancel_futures=True)
+    except Exception:
+        pass
 
 
 atexit.register(_shutdown_dns_executor)
+
 
 
 # Primary Tier-1 Public DNS Resolvers
@@ -126,6 +131,33 @@ def _query_resolver_single(
     except dns.resolver.NXDOMAIN:
         return {"status": "nxdomain", "name": name, "provider": provider, "ip": ip}
     except (dns.resolver.Timeout, dns.resolver.LifetimeTimeout):
+        if provider in ("Cloudflare", "Google"):
+            try:
+                import requests
+                doh_url = "https://cloudflare-dns.com/dns-query" if provider == "Cloudflare" else "https://dns.google/resolve"
+                resp = requests.get(doh_url, params={"name": host, "type": "A"}, headers={"Accept": "application/dns-json"}, timeout=1.5)
+                if resp.status_code == 200:
+                    d = resp.json()
+                    st = d.get("Status")
+                    if st == 0:
+                        answers = d.get("Answer", [])
+                        ips = [a["data"] for a in answers if a.get("type") == 1]
+                        cnames = [a["data"].rstrip(".") for a in answers if a.get("type") == 5]
+                        if ips or cnames:
+                            return {
+                                "status": "resolved",
+                                "name": name,
+                                "provider": provider,
+                                "ip": ip,
+                                "ips": ips,
+                                "cname": cnames[0] if cnames else "",
+                                "record_type": "A" if ips else "CNAME",
+                                "latency_ms": round((time.time() - t0) * 1000, 1)
+                            }
+                    elif st == 3:
+                        return {"status": "nxdomain", "name": name, "provider": provider, "ip": ip}
+            except Exception:
+                pass
         return {"status": "timeout", "name": name, "provider": provider, "ip": ip}
     except Exception as exc:
         return {"status": "error", "name": name, "provider": provider, "ip": ip, "error": str(exc)}
@@ -142,7 +174,12 @@ def check_domain_multi_resolver(
     If specific_resolver is provided (e.g., 'cloudflare', 'google', 'opendns', 'quad9', 'adguard', 'controld', 'level3', 'system'):
       Queries ONLY that selected resolver provider.
     If specific_resolver is None or 'all' (default):
-      Queries all public resolvers in parallel with auto-failover, only declaring dead after all fail.
+      Queries all public resolvers with progressive multi-stage failover:
+        Stage 1: Primary Tier-1 Anycast (Cloudflare + Google).
+        Stage 2: If unconfirmed in Stage 1, automatically cascades to all remaining resolvers
+                 (OpenDNS, Quad9, AdGuard, Control D, Level3, OpenDNS Secondary).
+        Stage 3: Local System OS resolver fallback.
+      A domain is declared DEAD ONLY after all configured resolvers have failed.
     """
     clean_host = host.strip().lower().rstrip('.')
     if not clean_host:
@@ -268,12 +305,41 @@ def check_domain_multi_resolver(
                     "summary": f"Live via {resolver_label}{target_suffix}" + (f" -> {ips[0]}" if ips else f" -> CNAME: {cname}")
                 }
 
-    # If in 'all' mode, perform System OS fallback
+    # If in 'all' mode, perform System OS fallback without Windows NetBIOS blocking
     if target_mode == "all":
         tested_resolvers.append("System OS")
+        if HAS_DNSPYTHON:
+            try:
+                os_r = dns.resolver.Resolver(configure=True)
+                os_r.timeout = min(timeout, 1.0)
+                os_r.lifetime = min(timeout, 1.0)
+                ans = os_r.resolve(clean_host, 'A')
+                ips = [x.to_text() for x in ans]
+                cname = ans.canonical_name.to_text().rstrip('.') if ans.canonical_name else ''
+                if ips or cname:
+                    return {
+                        "status": "resolved",
+                        "alive": True,
+                        "resolver": "System OS Resolver",
+                        "provider": "System",
+                        "resolver_ip": "local",
+                        "ips": ips,
+                        "cname": cname if cname != clean_host else '',
+                        "record_type": "A" if ips else "CNAME",
+                        "tested_count": len(tested_resolvers),
+                        "checked_resolvers": tested_resolvers,
+                        "dead_confirmed": False,
+                        "summary": f"Live via System OS Resolver" + (f" -> {ips[0]}" if ips else f" -> CNAME: {cname}")
+                    }
+            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+                pass
+            except Exception:
+                pass
+
         try:
-            addrinfo = socket.getaddrinfo(clean_host, None)
-            ips = sorted({ai[4][0] for ai in addrinfo if ai and len(ai) > 4 and len(ai[4]) > 0})
+            fut = _OS_RESOLVER_EXECUTOR.submit(socket.getaddrinfo, clean_host, None)
+            addrinfo = fut.result(timeout=1.5)
+            ips = sorted({ai[4][0] for ai in addrinfo if ai and len(ai) > 4 and len(ai[4]) > 0 and ':' not in ai[4][0]})
             if ips:
                 return {
                     "status": "resolved",

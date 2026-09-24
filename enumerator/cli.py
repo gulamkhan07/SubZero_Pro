@@ -36,6 +36,8 @@ from enumerator.tls_scraper import scrape_tls_sans
 from enumerator.wildcard_detector import detect_wildcard_dns, is_wildcard_false_positive
 from enumerator.origin_verifier import verify_origin_candidates
 from enumerator.ptr_sweeper import sweep_ips_for_ptrs
+from enumerator.shodan_free import harvest_shodan_internetdb
+from enumerator.nested_engine import discover_nested_subdomains
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +163,8 @@ def run_cli_scan(
     wildcard: bool = False,
     verify_origin: bool = False,
     ptr_sweep: bool = False,
+    run_nested: bool = False,
+    shodan_free: bool = True,
     silent: bool = False,
     verbose: bool = False,
 ) -> Dict[str, Any]:
@@ -262,7 +266,7 @@ def run_cli_scan(
     if (resolve_dns or tls_san or ptr_sweep) and found_by:
         res_label = selected_resolver.upper() if selected_resolver != 'all' else 'Tier-1 Multi-Resolvers'
         log_info(f"Resolving {len(found_by)} subdomains via {res_label}...", silent)
-        with ThreadPoolExecutor(max_workers=20) as pool:
+        with ThreadPoolExecutor(max_workers=60) as pool:
             futures = {pool.submit(check_domain_multi_resolver, host, selected_resolver): host for host in found_by}
             for future in as_completed(futures):
                 host = futures[future]
@@ -272,16 +276,16 @@ def run_cli_scan(
     if tls_san and dns_records:
         resolved_ips = list(dict.fromkeys(ip for rec in dns_records.values() for ip in rec.get('ips', []) if ip))
         if resolved_ips:
-            log_info(f"Probing direct TLS SAN certificates across {len(resolved_ips[:15])} live IPs...", silent)
+            log_info(f"Probing direct TLS SAN certificates across {len(resolved_ips[:40])} live IPs (ports 443 & 8443)...", silent)
             try:
-                tls_subs = scrape_tls_sans(resolved_ips[:15], domain, max_workers=8, timeout=2.5)
+                tls_subs = scrape_tls_sans(resolved_ips[:40], domain, ports=[443, 8443], max_workers=12, timeout=2.5)
                 new_tls = [s for s in tls_subs if s not in found_by and s != domain]
                 if new_tls:
                     log_success(f"TLS SAN scraper uncovered {len(new_tls)} certificate hostnames", silent)
                     for s in new_tls:
                         found_by.setdefault(s, set()).add('tls-san')
                     if resolve_dns:
-                        with ThreadPoolExecutor(max_workers=min(8, len(new_tls))) as pool:
+                        with ThreadPoolExecutor(max_workers=min(40, len(new_tls))) as pool:
                             fut_map = {pool.submit(check_domain_multi_resolver, s, selected_resolver): s for s in new_tls}
                             for f in as_completed(fut_map):
                                 dns_records[fut_map[f]] = f.result()
@@ -307,6 +311,53 @@ def run_cli_scan(
                                 dns_records[fut_map[f]] = f.result()
             except Exception as exc:
                 errors.append(f"ptr_sweep: {exc}")
+
+    # Shodan InternetDB Harvest (100% Free, Zero Key Required)
+    if shodan_free and dns_records:
+        live_ips = list(dict.fromkeys(ip for rec in dns_records.values() for ip in rec.get('ips', []) if ip))
+        if live_ips:
+            log_info(f"Querying Shodan InternetDB across {len(live_ips[:35])} live IPs (100% free)...", silent)
+            try:
+                shodan_res = harvest_shodan_internetdb(live_ips[:35], domain, max_workers=15, timeout=3.0)
+                shodan_subs = shodan_res.get('subdomains', [])
+                new_shodan = [s for s in shodan_subs if s not in found_by and s != domain]
+                if new_shodan:
+                    log_success(f"Shodan InternetDB uncovered {len(new_shodan)} hostnames", silent)
+                    for s in new_shodan:
+                        found_by.setdefault(s, set()).add('shodan-free')
+                    if resolve_dns:
+                        with ThreadPoolExecutor(max_workers=min(12, len(new_shodan))) as pool:
+                            fut_map = {pool.submit(check_domain_multi_resolver, s, selected_resolver): s for s in new_shodan}
+                            for f in as_completed(fut_map):
+                                dns_records[fut_map[f]] = f.result()
+            except Exception as exc:
+                errors.append(f"shodan_free: {exc}")
+
+    # Nested & Multi-Tenant Recursive Engine
+    if (run_nested or active_dns) and found_by:
+        log_info("Mining multi-level tenant sub-zones for nested asset discovery...", silent)
+        try:
+            nested_subs = discover_nested_subdomains(
+                domain,
+                list(found_by.keys()),
+                max_candidates=1000,
+                max_workers=60,
+                dns_resolver=selected_resolver,
+                log_cb=(lambda m: log_info(m, silent)) if verbose else None
+            )
+            new_nested = [s for s in nested_subs if s not in found_by and s != domain]
+            if new_nested:
+                log_success(f"Nested engine uncovered {len(new_nested)} multi-level live subdomains", silent)
+                for s in new_nested:
+                    found_by.setdefault(s, set()).add('nested-engine')
+                if resolve_dns:
+                    with ThreadPoolExecutor(max_workers=min(40, len(new_nested))) as pool:
+                        fut_map = {pool.submit(check_domain_multi_resolver, s, selected_resolver): s for s in new_nested}
+                        for f in as_completed(fut_map):
+                            dns_records[fut_map[f]] = f.result()
+        except Exception as exc:
+            errors.append(f"nested_engine: {exc}")
+
 
     # CNAME Takeover Audit (if requested)
     cname_results: List[Dict[str, Any]] = []
@@ -578,6 +629,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     active_group.add_argument("-t", "--threads", dest="threads", type=int, default=500, help="Concurrency for active scanning (default: 500)")
     active_group.add_argument("--permute", dest="permute", action="store_true", help="Mutate discovered subdomains with permutation engine")
+    active_group.add_argument("--nested", dest="nested", action="store_true", help="Mine multi-tenant naming conventions & recursive sub-zones")
 
     dns_group = parser.add_argument_group("DNS RESOLUTION & FILTERING")
     dns_group.add_argument("-r", "--resolve", dest="resolve", action="store_true", help="Resolve subdomains across Tier-1 public multi-resolvers")
@@ -596,6 +648,8 @@ def build_parser() -> argparse.ArgumentParser:
     security_group.add_argument("--wildcard", dest="wildcard", action="store_true", help="Detect DNS wildcard catch-all (*.domain) and flag false positives")
     security_group.add_argument("--verify-origin", dest="verify_origin", action="store_true", help="Actively probe candidate Origin IPs (Host header) to verify True Origin / WAF bypass")
     security_group.add_argument("--ptr-sweep", dest="ptr_sweep", action="store_true", help="Reverse DNS (PTR) subnet sweeper on /24 ranges of candidate IPs")
+    security_group.add_argument("--no-shodan-free", dest="no_shodan_free", action="store_true", help="Disable automatic Shodan InternetDB harvesting")
+
 
     target_group.add_argument("-i", "--interactive", "--wizard", dest="interactive", action="store_true", help="Launch interactive step-by-step Cyber Recon Wizard to select tools & options")
 
@@ -925,6 +979,8 @@ def main(argv=None):
             wildcard=args.wildcard,
             verify_origin=args.verify_origin,
             ptr_sweep=args.ptr_sweep,
+            run_nested=args.nested,
+            shodan_free=not args.no_shodan_free,
             silent=args.silent,
             verbose=args.verbose,
         )

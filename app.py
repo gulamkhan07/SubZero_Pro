@@ -13,6 +13,14 @@ import io
 import json
 import os
 import sys
+# Configure standard streams to handle Unicode gracefully on Windows consoles
+for stream_name in ('stdout', 'stderr'):
+    stream = getattr(sys, stream_name, None)
+    if stream and hasattr(stream, 'reconfigure'):
+        try:
+            stream.reconfigure(encoding='utf-8', errors='backslashreplace')
+        except Exception:
+            pass
 import threading
 import time
 import uuid
@@ -33,6 +41,8 @@ from enumerator.tls_scraper import scrape_tls_sans
 from enumerator.wildcard_detector import detect_wildcard_dns, is_wildcard_false_positive
 from enumerator.origin_verifier import verify_origin_candidates
 from enumerator.ptr_sweeper import sweep_ips_for_ptrs
+from enumerator.shodan_free import harvest_shodan_internetdb
+from enumerator.nested_engine import discover_nested_subdomains, extract_subzones, mine_nested_patterns
 
 app = Flask(__name__)
 
@@ -91,7 +101,16 @@ atexit.register(_shutdown_executors)
 def _add_log(job, msg):
     ts = time.strftime('%H:%M:%S')
     entry = f'[{ts}] {msg}'
-    print(entry, flush=True)
+    try:
+        print(entry, flush=True)
+    except UnicodeEncodeError:
+        try:
+            safe_entry = entry.encode('ascii', errors='backslashreplace').decode('ascii')
+            print(safe_entry, flush=True)
+        except Exception:
+            pass
+    except Exception:
+        pass
     with JOBS_LOCK:
         if 'logs' not in job:
             job['logs'] = []
@@ -159,7 +178,7 @@ def _resolve_and_enrich_hosts(
 ) -> None:
     """Concurrently resolves newly discovered hosts (e.g. from TLS-SAN or PTR sweeps) and enriches results."""
     _add_log(job, f"[{source_tag.upper()}] Verifying DNS resolution for {len(hosts)} new host(s)...")
-    with ThreadPoolExecutor(max_workers=min(12, max(1, len(hosts)))) as pool:
+    with ThreadPoolExecutor(max_workers=min(40, max(1, len(hosts)))) as pool:
         futures = {pool.submit(check_domain_multi_resolver, s, selected_res): s for s in hosts}
         for future in as_completed(futures):
             s = futures[future]
@@ -240,6 +259,7 @@ def _run_scan(job_id, selected):
                     _add_log(job, "[!] Scan was cancelled by user.")
                     return
                 job['progress'] = f'Finished {len(counts)}/{total_sources} sources'
+                job['live_count'] = len(found_by)
 
     _add_log(job, f"[*] Merging & de-duplicating subdomains across all engines...")
     dns = {}
@@ -312,20 +332,30 @@ def _run_scan(job_id, selected):
             _add_log(job, f"[*] Verifying DNS resolution specifically via {selected_res.upper()} for {len(found_by)} unique hosts...")
         else:
             _add_log(job, f"[*] Verifying DNS resolution across Tier-1 resolvers (Cloudflare, Google, OpenDNS, Quad9, AdGuard, Control D, Level3) for {len(found_by)} unique hosts...")
-        with ThreadPoolExecutor(max_workers=20) as pool:
+        with ThreadPoolExecutor(max_workers=60) as pool:
             futures = {pool.submit(check_domain_multi_resolver, host, selected_res): host for host in found_by}
+            total_hosts = len(found_by)
+            checked_count = 0
+            live_count = 0
+            dead_count = 0
             for future in as_completed(futures):
                 host = futures[future]
-                res_info = future.result()
+                try:
+                    res_info = future.result()
+                except Exception:
+                    res_info = {'status': 'unresolved', 'ips': [], 'cname': '', 'resolver': 'System DNS'}
                 dns[host] = res_info
+                checked_count += 1
                 if res_info.get('status') == 'resolved':
+                    live_count += 1
                     resolver_label = res_info.get('resolver', 'Public DNS')
                     ip_part = f" -> {res_info['ips'][0]}" if res_info.get('ips') else ""
-                    _add_log(job, f"[DNS-CHECK] {host} -> [RESOLVED] via {resolver_label}{ip_part}")
+                    _add_log(job, f"[DNS-CHECK] 🎯 {host} -> [RESOLVED] via {resolver_label}{ip_part}")
                 else:
-                    tested_cnt = res_info.get('tested_count', len(res_info.get('checked_resolvers', [])))
-                    mode_label = f"via {selected_res.upper()}" if (selected_res and selected_res != 'all') else f"across all {tested_cnt} resolvers"
-                    _add_log(job, f"[DNS-CHECK] {host} -> [DEAD] (Confirmed {mode_label})")
+                    dead_count += 1
+
+                if checked_count % 50 == 0 or checked_count == total_hosts:
+                    _add_log(job, f"[*] [DNS-PROGRESS] Verified {checked_count}/{total_hosts} hosts ({live_count} Live, {dead_count} Dead across resolvers)...")
 
     results = []
     for host in sorted(found_by):
@@ -341,14 +371,17 @@ def _run_scan(job_id, selected):
             _enrich_subdomain_record(item, dns[host], wc_info)
         results.append(item)
 
+    with JOBS_LOCK:
+        job['results'] = list(results)
+
     # 4. Advanced Discovery & Intelligence Post-Processing
     if job['dns_validation'] and results:
-        # A. TLS SAN Certificate Scraping across resolved IPs
+        # A. TLS SAN Certificate Scraping across resolved IPs (Expanded multi-port 443 & 8443)
         all_resolved_ips = list(set(ip for r in results for ip in r.get('dns_ips', []) if ip))
         if all_resolved_ips:
-            _add_log(job, f"[*] Probing TLS SAN certificates across {len(all_resolved_ips[:15])} live IP(s)...")
+            _add_log(job, f"[*] Probing TLS SAN certificates across {len(all_resolved_ips[:50])} live IP(s) on ports 443 & 8443...")
             try:
-                tls_subs = scrape_tls_sans(all_resolved_ips[:15], main_target, max_workers=10, timeout=2.5)
+                tls_subs = scrape_tls_sans(all_resolved_ips[:50], main_target, ports=[443, 8443], max_workers=15, timeout=2.5)
                 new_tls = [s for s in tls_subs if s not in found_by and s != main_target]
                 if new_tls:
                     _add_log(job, f"[TLS-SAN] Discovered {len(new_tls)} hidden host(s) on direct SSL certificates: {', '.join(new_tls[:5])}")
@@ -383,6 +416,38 @@ def _run_scan(job_id, selected):
                     _resolve_and_enrich_hosts(new_ptrs, 'ptr-sweep', selected_res, wc_info, found_by, results, job)
             except Exception as e:
                 _add_log(job, f"[!] PTR sweep notice: {e}")
+
+        # D. Shodan InternetDB Harvest (100% Free, Zero Key Required)
+        if all_resolved_ips:
+            _add_log(job, f"[*] Querying Shodan InternetDB across {len(all_resolved_ips[:40])} live IP(s) for free intelligence...")
+            try:
+                shodan_res = harvest_shodan_internetdb(all_resolved_ips[:40], main_target, max_workers=15, timeout=3.5)
+                shodan_subs = shodan_res.get('subdomains', [])
+                new_shodan = [s for s in shodan_subs if s not in found_by and s != main_target]
+                if new_shodan:
+                    _add_log(job, f"[SHODAN-FREE] 🚀 Discovered {len(new_shodan)} hidden host(s) from Shodan InternetDB: {', '.join(new_shodan[:5])}")
+                    _resolve_and_enrich_hosts(new_shodan, 'shodan-free', selected_res, wc_info, found_by, results, job)
+            except Exception as e:
+                _add_log(job, f"[!] Shodan InternetDB notice: {e}")
+
+        # E. Multi-Level & Multi-Tenant Nested Subdomain Discovery
+        current_hosts = list(found_by.keys())
+        _add_log(job, f"[*] Mining multi-level tenant sub-zones for nested asset discovery...")
+        try:
+            nested_subs = discover_nested_subdomains(
+                main_target,
+                current_hosts,
+                max_candidates=1200,
+                max_workers=60,
+                dns_resolver=selected_res,
+                log_cb=lambda m: _add_log(job, m)
+            )
+            new_nested = [s for s in nested_subs if s not in found_by and s != main_target]
+            if new_nested:
+                _add_log(job, f"[NESTED-ENGINE] 🔥 Discovered {len(new_nested)} verified live nested subdomain(s)!")
+                _resolve_and_enrich_hosts(new_nested, 'nested-engine', selected_res, wc_info, found_by, results, job)
+        except Exception as e:
+            _add_log(job, f"[!] Nested discovery notice: {e}")
 
     with JOBS_LOCK:
         if job['cancelled']:
@@ -630,16 +695,38 @@ def _run_batch(batch_id, domains, config):
             batch = BATCH_JOBS.get(batch_id)
             if not batch or batch['cancelled']:
                 return
+            batch['status'] = 'running'
             batch['current_target'] = domain
             batch['current_index'] = idx + 1
             batch['progress'] = f'Scanning {idx + 1}/{len(domains)}: {domain}'
 
         sub_job_id = uuid.uuid4().hex
-        selected = config.get('sources')
-        if not selected:
+        with BATCH_LOCK:
+            batch = BATCH_JOBS.get(batch_id)
+            if batch:
+                batch['current_job_id'] = sub_job_id
+                if 'targets' not in batch:
+                    batch['targets'] = {}
+                batch['targets'][domain] = {
+                    'job_id': sub_job_id,
+                    'status': 'scanning',
+                    'count': 0
+                }
+
+        requested = config.get('sources')
+        if requested is None:
             selected = list(DEFAULT_PROVIDER_ORDER)
+        else:
+            if isinstance(requested, str):
+                requested = [requested]
+            requested = [TOOL_ALIASES.get(s.strip().lower(), s.strip().lower()) for s in requested if isinstance(s, str)]
+            selected = [name for name in DEFAULT_PROVIDER_ORDER if name in requested]
+
         active_dns = bool(config.get('active_dns', False))
-        active_wordlist = str(config.get('active_wordlist', '5000'))
+        active_wordlist = str(config.get('active_wordlist', '5000')).strip()
+        if not selected and not active_dns:
+            selected = list(DEFAULT_PASSIVE_PROVIDERS)
+
         validate_dns = bool(config.get('validate_dns', False))
         selected_resolver = str(config.get('dns_resolver') or config.get('selected_resolver') or 'all').strip().lower()
 
@@ -653,10 +740,21 @@ def _run_batch(batch_id, domains, config):
                 'cancelled': False, 'cached': False,
                 'cache_key': (domain, tuple(selected), validate_dns, active_dns, active_wordlist, selected_resolver),
                 'logs': [], 'total_log_count': 0,
+                'created_at': time.time(),
             }
             JOBS[sub_job_id] = job
 
-        _run_scan(sub_job_id, selected)
+        try:
+            _run_scan(sub_job_id, selected)
+        except Exception as exc:
+            # Catch any unhandled exception so one failed domain doesn't
+            # kill the entire batch loop for all remaining domains.
+            print(f"[BATCH ERROR] Scan for {domain} crashed: {type(exc).__name__}: {exc}", flush=True)
+            with JOBS_LOCK:
+                failed_job = JOBS.get(sub_job_id)
+                if failed_job and failed_job['status'] != 'completed':
+                    failed_job.update(status='completed', progress='Completed (partial)',
+                                      errors=failed_job.get('errors', []) + [f'Engine error: {exc}'])
 
         with JOBS_LOCK:
             fin = JOBS.get(sub_job_id)
@@ -715,30 +813,112 @@ def batch_start():
     return jsonify(batch), 202
 
 
-@app.get('/api/batch/<batch_id>')
-def batch_status(batch_id):
+def _get_or_restore_batch(batch_id):
     with BATCH_LOCK:
         batch = BATCH_JOBS.get(batch_id)
-        if not batch:
-            return jsonify(error='Batch job not found.'), 404
+        if batch:
+            return batch
+        if batch_id in ('latest', 'latest_batch') and BATCH_JOBS:
+            return list(BATCH_JOBS.values())[-1]
 
+    # Try restoring recent batch from SQLite history
+    try:
+        from enumerator.history_store import _get_conn
+        with _get_conn() as conn:
+            rows = conn.execute('''
+                SELECT domain, id, count, subdomains_json
+                FROM scan_history
+                WHERE domain != 'example.com'
+                GROUP BY domain
+                ORDER BY MAX(timestamp) DESC
+                LIMIT 5
+            ''').fetchall()
+            if rows:
+                target_rows = rows[:3]
+                domains = [r['domain'] for r in target_rows]
+                restored_id = batch_id if batch_id not in ('latest', 'latest_batch') else 'latest_batch'
+                targets = {}
+                total_cnt = 0
+                for r in target_rows:
+                    d = r['domain']
+                    jid = r['id']
+                    cnt = r['count']
+                    total_cnt += cnt
+                    targets[d] = {'job_id': jid, 'status': 'completed', 'count': cnt}
+                    with JOBS_LOCK:
+                        if jid not in JOBS:
+                            subs = json.loads(r['subdomains_json'])
+                            JOBS[jid] = {
+                                'id': jid,
+                                'domain': d,
+                                'status': 'completed',
+                                'progress': 'Completed',
+                                'results': [{'subdomain': s, 'dns': 'not-checked'} for s in subs]
+                            }
+
+                restored_batch = {
+                    'id': restored_id,
+                    'batch_id': restored_id,
+                    'domains': domains,
+                    'status': 'completed',
+                    'progress': f'All {len(domains)} targets scanned successfully.',
+                    'total_subdomains_found': total_cnt,
+                    'completed_count': len(domains),
+                    'total_domains': len(domains),
+                    'targets': targets,
+                    'cancelled': False,
+                    'developed_by': 'Gulam'
+                }
+                with BATCH_LOCK:
+                    BATCH_JOBS[restored_id] = restored_batch
+                    BATCH_JOBS['latest'] = restored_batch
+                    BATCH_JOBS['latest_batch'] = restored_batch
+                return restored_batch
+    except Exception:
+        pass
+    return None
+
+
+@app.get('/api/batch/<batch_id>')
+def batch_status(batch_id):
+    batch = _get_or_restore_batch(batch_id)
+    if not batch:
+        return jsonify(error='Batch job not found.'), 404
+
+    with BATCH_LOCK:
         total_found = sum(t.get('count', 0) for t in batch.get('targets', {}).values())
         domains_list = []
         for d in batch['domains']:
             tgt = batch.get('targets', {}).get(d)
             if tgt:
+                live_count = tgt.get('count', 0)
+                tgt_status = tgt.get('status', 'completed')
+                # For targets still scanning, read the live result count from
+                # the active sub-job so the UI shows real-time progress
+                if tgt_status == 'scanning':
+                    with JOBS_LOCK:
+                        live_job = JOBS.get(tgt.get('job_id'))
+                        if live_job:
+                            live_count = len(live_job.get('results', [])) or live_job.get('live_count', 0)
                 domains_list.append({
                     'domain': d,
-                    'status': tgt.get('status', 'completed'),
-                    'subdomain_count': tgt.get('count', 0),
+                    'status': tgt_status,
+                    'subdomain_count': live_count,
                     'job_id': tgt.get('job_id')
                 })
             elif d == batch.get('current_target'):
+                live_cnt = 0
+                c_jid = batch.get('current_job_id')
+                if c_jid:
+                    with JOBS_LOCK:
+                        live_job = JOBS.get(c_jid)
+                        if live_job:
+                            live_cnt = len(live_job.get('results', [])) or live_job.get('live_count', 0)
                 domains_list.append({
                     'domain': d,
                     'status': 'scanning',
-                    'subdomain_count': 0,
-                    'job_id': None
+                    'subdomain_count': live_cnt,
+                    'job_id': c_jid
                 })
             else:
                 domains_list.append({
@@ -748,11 +928,20 @@ def batch_status(batch_id):
                     'job_id': None
                 })
 
+        # Recompute total including live counts
+        total_found = sum(d_item.get('subdomain_count', 0) for d_item in domains_list)
+        # Only count truly completed targets (not still scanning or queued)
+        actual_completed = sum(
+            1 for d_item in domains_list
+            if d_item.get('status') == 'completed'
+        )
+
         resp = copy.deepcopy(batch)
-        resp['batch_id'] = batch_id
+        resp['batch_id'] = batch.get('id', batch_id)
         resp['total_domains'] = len(batch['domains'])
-        resp['completed_count'] = len(batch.get('targets', {}))
+        resp['completed_count'] = actual_completed
         resp['total_subdomains_found'] = total_found
+        resp['current_domain'] = batch.get('current_target') or ''
         resp['domains'] = domains_list
         return jsonify(resp)
 
@@ -776,6 +965,211 @@ def batch_cancel(batch_id):
                     break
     with BATCH_LOCK:
         return jsonify(batch)
+
+
+@app.get('/api/batch/<batch_id>/subdomains')
+def batch_subdomains(batch_id):
+    """
+    Returns all unique discovered subdomains from a batch scan across all targets.
+    Separates them into all_subdomains, live_subdomains, dead_subdomains, and full detail records.
+    """
+    batch = _get_or_restore_batch(batch_id)
+    if not batch:
+        return jsonify(error='Batch job not found.'), 404
+
+    with BATCH_LOCK:
+        targets = copy.deepcopy(batch.get('targets', {}))
+        current_target = batch.get('current_target')
+        current_job_id = batch.get('current_job_id')
+
+    all_hosts = set()
+    live_hosts = set()
+    dead_hosts = set()
+    details = []
+    seen_details = set()
+    per_target = {}
+
+    target_jobs = []
+    for d, info in targets.items():
+        jid = info.get('job_id')
+        if jid:
+            target_jobs.append((d, jid))
+    if current_target and current_job_id and not any(t[0] == current_target for t in target_jobs):
+        target_jobs.append((current_target, current_job_id))
+
+    with JOBS_LOCK:
+        for domain, jid in target_jobs:
+            job = JOBS.get(jid)
+            if not job:
+                continue
+            res_list = job.get('results', [])
+            per_target[domain] = []
+            for item in res_list:
+                sub = (item.get('subdomain') or item.get('domain') or '').strip().lower()
+                if not sub:
+                    continue
+                all_hosts.add(sub)
+                per_target[domain].append(sub)
+                dns_status = item.get('dns', 'not-checked')
+                if dns_status == 'resolved':
+                    live_hosts.add(sub)
+                elif dns_status == 'unresolved':
+                    dead_hosts.add(sub)
+                if sub not in seen_details:
+                    seen_details.add(sub)
+                    details.append(copy.deepcopy(item))
+
+    sorted_all = sorted(all_hosts)
+    sorted_live = sorted(live_hosts)
+    sorted_dead = sorted(dead_hosts)
+
+    return jsonify({
+        'batch_id': batch_id,
+        'total_subdomains': len(sorted_all),
+        'live_count': len(sorted_live),
+        'dead_count': len(sorted_dead),
+        'subdomains': sorted_all,
+        'live_subdomains': sorted_live,
+        'dead_subdomains': sorted_dead,
+        'per_target': per_target,
+        'details': details
+    })
+
+
+@app.post('/api/batch/live-check')
+def batch_live_check():
+    """
+    Dedicated endpoint to check live subdomains from batch results or custom domain lists.
+    Supports fast multi-resolver DNS verification or full HTTP/HTTPS probing.
+    """
+    data = request.get_json(silent=True) or {}
+    raw_hosts = data.get('hosts') or data.get('subdomains') or []
+    if isinstance(raw_hosts, str):
+        raw_hosts = [h.strip() for h in raw_hosts.replace(',', '\n').splitlines() if h.strip()]
+
+    # Clean and deduplicate hostnames
+    hosts = []
+    seen = set()
+    for h in raw_hosts:
+        if isinstance(h, str):
+            clean_h = h.strip().lower().rstrip('.')
+            if clean_h and clean_h not in seen:
+                seen.add(clean_h)
+                hosts.append(clean_h)
+
+    # Allow up to 1000 hosts per live check batch
+    hosts = hosts[:1000]
+    if not hosts:
+        return jsonify(error='Provide at least one subdomain to check for live status.'), 400
+
+    mode = str(data.get('mode') or 'dns').strip().lower()
+    resolver = str(data.get('resolver') or data.get('dns_resolver') or 'all').strip().lower()
+    timeout = float(data.get('timeout', 1.8))
+    concurrency = min(int(data.get('concurrency', 40)), 60)
+
+    if mode == 'http':
+        # Full Web HTTP/HTTPS prober mode
+        probed = probe_hosts(hosts, max_workers=concurrency, timeout=timeout, specific_resolver=resolver)
+        live_results = []
+        dead_results = []
+        unique_ips = set()
+        for p in probed:
+            ip = p.get('ip')
+            if ip:
+                unique_ips.add(ip)
+            is_live = bool(p.get('alive') or (p.get('status_code') and p.get('status_code') > 0) or p.get('dns_status') == 'resolved')
+            p['is_live'] = is_live
+            if is_live:
+                live_results.append(p)
+            else:
+                dead_results.append(p)
+
+        return jsonify({
+            'status': 'completed',
+            'mode': 'http',
+            'total': len(probed),
+            'live_count': len(live_results),
+            'dead_count': len(dead_results),
+            'unique_ips': sorted(unique_ips),
+            'live_hosts': [p['host'] for p in live_results],
+            'dead_hosts': [p['host'] for p in dead_results],
+            'results': live_results + dead_results
+        })
+
+    # Default Mode: Fast Multi-Resolver DNS verification
+    results = []
+    live_hosts = []
+    dead_hosts = []
+    unique_ips = set()
+
+    with ThreadPoolExecutor(max_workers=concurrency) as pool:
+        future_to_host = {
+            pool.submit(check_domain_multi_resolver, host, resolver, timeout): host
+            for host in hosts
+        }
+        for fut in as_completed(future_to_host):
+            host = future_to_host[fut]
+            try:
+                dns_info = fut.result()
+            except Exception as ex:
+                dns_info = {
+                    'status': 'unresolved',
+                    'alive': False,
+                    'resolver': None,
+                    'ips': [],
+                    'cname': '',
+                    'summary': f'Lookup exception: {ex}'
+                }
+
+            is_live = bool(dns_info.get('status') == 'resolved' or dns_info.get('alive'))
+            ips = dns_info.get('ips', [])
+            cname = dns_info.get('cname', '')
+            res_label = dns_info.get('resolver', 'Public DNS')
+
+            for ip in ips:
+                unique_ips.add(ip)
+
+            intel = classify_ips(ips, cname=cname) if ips or cname else {}
+            waf_label = intel.get('waf_provider', '')
+            badge_type = intel.get('badge_type', '')
+
+            item = {
+                'host': host,
+                'subdomain': host,
+                'alive': is_live,
+                'status': 'resolved' if is_live else 'unresolved',
+                'ips': ips,
+                'primary_ip': ips[0] if ips else '',
+                'cname': cname,
+                'resolver': res_label,
+                'summary': dns_info.get('summary', ''),
+                'waf_provider': waf_label,
+                'waf_badge': badge_type,
+                'is_cdn': intel.get('is_cdn', False)
+            }
+            results.append(item)
+            if is_live:
+                live_hosts.append(host)
+            else:
+                dead_hosts.append(host)
+
+    # Sort results: live hosts first, then alphabetically
+    results.sort(key=lambda x: (0 if x['alive'] else 1, x['host']))
+    live_hosts.sort()
+    dead_hosts.sort()
+
+    return jsonify({
+        'status': 'completed',
+        'mode': 'dns',
+        'resolver': resolver,
+        'total': len(hosts),
+        'live_count': len(live_hosts),
+        'dead_count': len(dead_hosts),
+        'unique_ips': sorted(unique_ips),
+        'live_hosts': live_hosts,
+        'dead_hosts': dead_hosts,
+        'results': results
+    })
 
 
 # =========================================================================
@@ -883,6 +1277,59 @@ def api_permutations_scan():
 
     res = scan_permutations(domain, seeds, custom_words=custom_words, max_candidates=limit, max_workers=concurrency, specific_resolver=resolver)
     return jsonify(res)
+
+
+@app.post('/api/nested/subzones')
+def api_nested_subzones():
+    """Extracts candidate sub-zones and patterns from discovered hosts."""
+    data = request.get_json(silent=True) or {}
+    domain = (data.get('domain') or '').strip().lower().rstrip('.')
+    hosts = data.get('hosts') or []
+    if not domain or not valid_domain(domain):
+        return jsonify(error='Provide a valid root domain.'), 400
+    subzones = extract_subzones(hosts, domain)
+    candidates = mine_nested_patterns(hosts, domain, max_candidates=100)
+    return jsonify({
+        'domain': domain,
+        'subzones': [{'subzone': sz, 'count': cnt} for sz, cnt in subzones],
+        'sample_candidates': candidates[:50],
+        'total_subzones': len(subzones)
+    })
+
+
+@app.post('/api/nested/scan')
+def api_nested_scan():
+    """Executes active nested subdomain discovery on candidate sub-zones."""
+    data = request.get_json(silent=True) or {}
+    domain = (data.get('domain') or '').strip().lower().rstrip('.')
+    hosts = data.get('hosts') or []
+    if not domain or not valid_domain(domain):
+        return jsonify(error='Provide a valid root domain.'), 400
+    limit = min(int(data.get('limit', 500)), 1500)
+    concurrency = min(int(data.get('concurrency', 25)), 50)
+    resolver = data.get('dns_resolver') or data.get('selected_resolver') or 'all'
+
+    live_hosts = discover_nested_subdomains(
+        domain, hosts, max_candidates=limit, max_workers=concurrency, dns_resolver=resolver
+    )
+    return jsonify({
+        'domain': domain,
+        'total_discovered': len(live_hosts),
+        'subdomains': sorted(live_hosts)
+    })
+
+
+@app.post('/api/shodan/free')
+def api_shodan_free():
+    """Queries Shodan InternetDB (100% free, zero key required) for IP addresses."""
+    data = request.get_json(silent=True) or {}
+    domain = (data.get('domain') or '').strip().lower().rstrip('.')
+    ips = data.get('ips') or []
+    if not domain or not valid_domain(domain):
+        return jsonify(error='Provide a valid root domain.'), 400
+    res = harvest_shodan_internetdb(ips, domain)
+    return jsonify(res)
+
 
 
 # =========================================================================

@@ -66,12 +66,14 @@ uv run --with requests --with dnspython --with flask python -m unittest discover
 # Or with pytest:
 pytest tests/ -v
 ```
-All **46 test cases** must pass with 100% green status, covering:
+All **85 test cases** must pass with 100% green status, covering:
 - Terminal CLI Engine, Wizard & Tool Exclusions (`test_cli.py`)
 - IP Intelligence & Origin Server vs CDN/WAF (`test_ip_intel.py`)
 - Multi-Resolver DNS Integrity & Dead-Domain Verification (`test_dns_resolver.py`)
 - Wayback & AlienVault Historical URL Mining (`test_archive_miner.py`)
 - Subdomain Permutations & Mutation Engine (`test_permutations.py`)
+- Shodan Free InternetDB Harvester (`test_shodan_free.py`)
+- Nested & Recursive Multi-Tenant Subdomain Engine (`test_nested_engine.py`)
 - Passive OSINT providers, Subfinder timeouts, CNAME takeover auditor, and History Store (`test_requirements.py`)
 
 ---
@@ -80,21 +82,16 @@ All **46 test cases** must pass with 100% green status, covering:
 
 ### Reconnaissance Engine (`enumerator/`)
 - **`cli.py`**: Terminal command-line interface with `-silent` stdout piping, interactive wizard, tool exclusions, and export pipeline.
-- **`providers.py`**: Coordinates high-yield passive sources:
-  - `subfinder` (Subprocess binary with 70s timeout)
-  - `crt.sh` (Certificate Transparency log search)
-  - `sslmate` (CertSpotter API)
-  - `rapiddns` (Web scraping)
-  - `hackertarget` (Host search API)
-  - `otx` (AlienVault OTX passive DNS indicators)
-  - `urlscan` (URLScan.io public historical records)
-  - `amass` (*Decoupled / OFF by default*, only enabled with `--amass` or `-all`)
+- **`providers.py`**: Coordinates high-yield passive sources (Subfinder, crt.sh, SSLMate, RapidDNS, HackerTarget, AlienVault OTX, URLScan, Amass).
+- **`shodan_free.py`**: 100% Free, zero-API-key Shodan InternetDB harvester querying all resolved IP addresses.
+- **`nested_engine.py`**: Multi-tenant, cloud-native recursive subdomain engine extracting sub-zones and synthesizing level 2-5 candidate permutations.
+- **`tls_scraper.py`**: Direct TLS SAN certificate scraper probing ports 443 and 8443 across all live IPs.
 - **`request_utils.py`**: Central HTTP dispatcher with exponential backoff + jitter, session pooling, and network pre-flight check (`check_network_connectivity()`).
 - **`dns_resolver.py`**: Parallel queries across 11 public DNS resolvers (Cloudflare, Google, OpenDNS, Quad9, AdGuard, Control D, Level3).
 - **`active_scanner.py`**: High-speed DNS wordlist brute-forcer with sequence telemetry (`#0001` to `#5000`) and wildcard DNS auto-suppression.
-- **`cname_auditor.py`**: Detects dangling CNAME records for cloud takeovers (AWS S3, GitHub Pages, Heroku, Azure, Shopify, Fastly, Zendesk, Surge.sh).
+- **`cname_auditor.py`**: Detects dangling CNAME records for cloud takeovers.
 - **`http_prober.py`**: Live HTTP/HTTPS status, page title, and server headers extraction with 32KB streaming RAM cap.
-- **`ip_intel.py`**: Classifies IPs as CDN/WAF (Cloudflare, CloudFront, Fastly, Akamai) vs Direct Origin IP.
+- **`ip_intel.py`**: Classifies IPs as CDN/WAF vs Direct Origin IP.
 - **`history_store.py`**: SQLite database with Write-Ahead Logging (`WAL`) mode for concurrent reads/writes and scan diff tracking.
 
 ---

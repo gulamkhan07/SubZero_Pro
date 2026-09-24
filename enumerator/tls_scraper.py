@@ -111,24 +111,29 @@ def scrape_tls_sans(
     targets: Iterable[str],
     target_domain: str,
     port: int = 443,
-    max_workers: int = 15,
+    ports: Optional[Iterable[int]] = None,
+    max_workers: int = 20,
     timeout: float = 3.0
 ) -> Set[str]:
     """
-    Scrapes TLS SAN certificates in parallel across a list of IPs and hosts.
+    Scrapes TLS SAN certificates in parallel across a list of IPs and hosts,
+    optionally across multiple ports (e.g. 443, 8443).
     Returns all validated subdomains belonging to target_domain.
     """
     unique_targets = list(set(t.strip() for t in targets if t and t.strip()))
     if not unique_targets:
         return set()
 
+    probe_ports = list(ports) if ports is not None else [port]
+    tasks = [(target, p) for target in unique_targets for p in probe_ports]
+
     found_subs: Set[str] = set()
-    workers = min(len(unique_targets), max_workers) or 1
+    workers = min(len(tasks), max_workers) or 1
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {
-            pool.submit(scrape_host_tls, target, target_domain, port, timeout): target
-            for target in unique_targets
+            pool.submit(scrape_host_tls, target, target_domain, p, timeout): (target, p)
+            for target, p in tasks
         }
         for future in as_completed(futures):
             try:
@@ -139,3 +144,4 @@ def scrape_tls_sans(
                 pass
 
     return found_subs
+

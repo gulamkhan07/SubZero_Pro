@@ -370,6 +370,118 @@
         </div>
         <p class="muted">Queue multiple domains for automated discovery. Executes sequential scans with zero memory leaks and automatic artifact generation.</p>
 
+        <!-- Batch Quick Toolbar -->
+        <div class="quick-toolbar" style="margin-bottom: 12px;">
+          <button type="button" class="drawer-toggle-btn" id="btn-toggle-batch-engines" onclick="toggleBatchEngineDrawer()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg><span>Configure Engines & Resolvers</span>
+            <span id="batch-engine-drawer-arrow">▲</span>
+          </button>
+          <div class="quick-resolver-pill">
+            <span class="quick-dot"></span>
+            <span>Multi-Resolver:</span>
+            <strong id="batch-quick-resolver-label">Auto-Failover (All)</strong>
+          </div>
+        </div>
+
+        <!-- Open Batch Engine Drawer (Visible by default) -->
+        <div id="batch-engine-drawer" class="engine-drawer" style="margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div class="engine-section-label" style="margin-bottom: 0;">CONFIGURE RECONNAISSANCE ENGINES</div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="term-btn" onclick="setAllBatchEngines(true)" style="font-size: 10px; padding: 2px 7px;">Select All</button>
+              <button type="button" class="term-btn" onclick="setAllBatchEngines(false)" style="font-size: 10px; padding: 2px 7px;">Clear All</button>
+            </div>
+          </div>
+          <div class="toggle-row">
+            <label class="engine-chip">
+              <input id="batch-source-subfinder" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">Subfinder Fast</span>
+            </label>
+            <label class="engine-chip chip-deep">
+              <input id="batch-source-subfinder_all" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">Subfinder Deep (52 Sources)</span>
+            </label>
+            <label class="engine-chip chip-ct">
+              <input id="batch-source-crtsh" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">crt.sh (CT Logs)</span>
+            </label>
+            <label class="engine-chip">
+              <input id="batch-source-rapiddns" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">RapidDNS</span>
+            </label>
+            <label class="engine-chip chip-emerald">
+              <input id="batch-source-hackertarget" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">HackerTarget</span>
+            </label>
+            <label class="engine-chip">
+              <input id="batch-source-sslmate" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">SSLMate (CertSpotter)</span>
+            </label>
+            <label class="engine-chip">
+              <input id="batch-source-amass" type="checkbox">
+              <span class="chip-dot"></span>
+              <span class="chip-label">Amass (File-Streamed)</span>
+            </label>
+            <label class="engine-chip">
+              <input id="batch-source-otx" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">AlienVault OTX</span>
+            </label>
+            <label class="engine-chip">
+              <input id="batch-source-urlscan" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">URLScan.io</span>
+            </label>
+
+            <!-- Batch Active DNS Brute-Force Chip Group -->
+            <div class="active-group">
+              <label class="engine-chip chip-active" style="border:none; background:transparent; padding:0;">
+                <input id="batch-active-dns" type="checkbox">
+                <span class="chip-dot"></span>
+                <span class="chip-label">Active DNS Brute-Force</span>
+              </label>
+              <select id="batch-active-wordlist" class="wordlist-select" title="Dictionary size for DNS brute-forcing">
+                <option value="5000" selected>Top 5,000 (SecLists)</option>
+                <option value="10000">Deep 10,000 (SecLists)</option>
+                <option value="20000">Extreme 20,000</option>
+                <option value="1500">Fast 1,500</option>
+              </select>
+            </div>
+
+            <!-- Batch Multi-Resolver Live DNS Check Group -->
+            <div class="active-group resolver-group">
+              <label class="engine-chip chip-multidns" style="border:none; background:transparent; padding:0;" title="Live DNS Check: Queries Tier-1 public resolvers to determine domain liveness.">
+                <input id="batch-validate-dns" type="checkbox" checked>
+                <span class="chip-dot"></span>
+                <span class="chip-label">Live DNS Check</span>
+              </label>
+              <select id="batch-dns-resolver-target" class="resolver-select" title="Choose specific resolver or test all with auto-failover" onchange="updateBatchQuickResolverLabel()">
+                <option value="all" selected>⚡ All Resolvers (Auto-Failover / Confirm Dead)</option>
+                <option value="cloudflare">Cloudflare (1.1.1.1 / 1.0.0.1)</option>
+                <option value="google">Google Public DNS (8.8.8.8 / 8.8.4.4)</option>
+                <option value="opendns">OpenDNS (208.67.222.222 / 208.67.220.220)</option>
+                <option value="quad9">Quad9 Secure (9.9.9.9 / 149.112.112.112)</option>
+                <option value="adguard">AdGuard DNS (94.140.14.14)</option>
+                <option value="controld">Control D (76.76.2.0)</option>
+                <option value="level3">Level3 / Lumen (4.2.2.1)</option>
+                <option value="system">System Local OS Only</option>
+              </select>
+            </div>
+
+            <label class="engine-chip chip-verbose">
+              <input id="batch-verbose-dns" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">Live Verbose Query Log</span>
+            </label>
+          </div>
+        </div>
+
         <div class="batch-input-card">
           <label class="batch-label" for="batch-domains">
             <span>TARGET DOMAIN QUEUE (ONE PER LINE)</span>
@@ -420,9 +532,23 @@
 
         <!-- Batch Results Summary Table -->
         <div id="batch-results-box" class="batch-results-container hidden">
-          <div class="batch-results-header">
-            <h3>Batch Execution Summary</h3>
-            <span id="batch-total-subdomains" class="badge badge-conf-high">0 Subdomains Discovered</span>
+          <div class="batch-results-header" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <h3 style="margin: 0;">Batch Execution Summary</h3>
+              <span id="batch-total-subdomains" class="badge badge-conf-high">0 Subdomains Discovered</span>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+              <button type="button" class="btn-primary" id="btn-batch-check-live-direct" onclick="triggerBatchLiveCheck()" style="padding: 6px 14px; font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;" title="Verify and filter live responding subdomains from this batch">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>⚡ Check Live Domains</span>
+              </button>
+              <button type="button" class="action-btn" id="btn-batch-copy-all-subs" onclick="copyBatchAllSubdomains()" style="font-size: 12px; padding: 6px 12px;">
+                📋 Copy All Subdomains
+              </button>
+              <button type="button" class="action-btn" id="btn-batch-download-all" onclick="downloadBatchAllSubdomains()" style="font-size: 12px; padding: 6px 12px;">
+                ⬇ Export All (.txt)
+              </button>
+            </div>
           </div>
           <div class="table-responsive">
             <table class="cyber-table" id="batch-summary-table">
@@ -438,6 +564,163 @@
                 <!-- Dynamically populated -->
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- ================================================================== -->
+        <!-- BATCH LIVE DOMAIN VERIFICATION & FILTER ENGINE                     -->
+        <!-- ================================================================== -->
+        <div id="batch-live-section" class="card" style="margin-top: 24px; border: 1px solid var(--border); background: var(--bg-card);">
+          <div class="brand-row" style="margin-bottom: 12px;">
+            <div>
+              <div class="eyebrow-badge">
+                <span class="pulse-dot"></span>
+                <span>REAL-TIME ASSET VERIFICATION</span>
+              </div>
+              <h3 style="font-size: 18px; font-weight: 700; margin-top: 4px;">Batch Live Domain Checker & Filter</h3>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button type="button" class="term-btn" onclick="loadSubdomainsFromBatch()" id="btn-load-batch-subs" title="Auto-import discovered subdomains from active/completed batch scan" style="color: #ffffff; border-color: #404040;">
+                ⚡ Load From Completed Batch
+              </button>
+              <button type="button" class="term-btn" onclick="pasteBatchLiveInput()">📋 Paste</button>
+              <button type="button" class="term-btn" onclick="clearBatchLiveInput()">Clear</button>
+            </div>
+          </div>
+          <p class="muted" style="margin-bottom: 16px; font-size: 13px;">
+            Input your batch subdomains or load them with 1 click to isolate active, live subdomains. Automatically filters out dead/NXDOMAIN entries and identifies live origin servers & WAFs.
+          </p>
+
+          <!-- Controls Bar -->
+          <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px;">
+            <div class="active-group" style="display: inline-flex; align-items: center; gap: 8px;">
+              <label for="batch-live-mode" style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">PROBING MODE:</label>
+              <select id="batch-live-mode" class="resolver-select" onchange="toggleBatchLiveMode()">
+                <option value="dns" selected>⚡ Fast Multi-Resolver DNS (A/AAAA/CNAME Check)</option>
+                <option value="http">🌐 Full HTTP/HTTPS Prober (Status 200/301, Titles, WAF)</option>
+              </select>
+            </div>
+
+            <div class="active-group resolver-group" style="display: inline-flex; align-items: center; gap: 8px;">
+              <label for="batch-live-resolver" style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">RESOLVER:</label>
+              <select id="batch-live-resolver" class="resolver-select">
+                <option value="all" selected>⚡ Auto-Failover (All Tier-1 Resolvers)</option>
+                <option value="cloudflare">Cloudflare (1.1.1.1)</option>
+                <option value="google">Google Public DNS (8.8.8.8)</option>
+                <option value="opendns">OpenDNS (208.67.222.222)</option>
+                <option value="quad9">Quad9 Secure (9.9.9.9)</option>
+                <option value="adguard">AdGuard DNS (94.140.14.14)</option>
+                <option value="system">System Local OS</option>
+              </select>
+            </div>
+
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+              <span id="batch-live-input-count" class="badge badge-cached" style="font-size: 11px;">0 hosts ready</span>
+            </div>
+          </div>
+
+          <!-- Textarea Input -->
+          <div style="margin-bottom: 14px;">
+            <textarea id="batch-live-input" class="batch-textarea" rows="5" placeholder="Paste batch results or discovered subdomains here (one per line)...&#10;api.example.com&#10;vpn.example.com&#10;portal.example.com" spellcheck="false" oninput="updateBatchLiveInputCount()"></textarea>
+          </div>
+
+          <!-- Launch Button Bar -->
+          <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;">
+            <button id="btn-run-batch-live" type="button" class="btn-primary" onclick="runBatchLiveCheck()" style="display: inline-flex; align-items: center; gap: 6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              <span id="btn-run-batch-live-text">Verify Live Domains Now</span>
+            </button>
+            <div id="batch-live-spinner" class="hidden" style="display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 13px;">
+              <span class="pulse-dot"></span>
+              <span id="batch-live-status-text">Probing resolution across resolvers...</span>
+            </div>
+          </div>
+
+          <!-- ================================================================ -->
+          <!-- LIVE RESULTS DASHBOARD                                           -->
+          <!-- ================================================================ -->
+          <div id="batch-live-results-panel" class="hidden" style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 18px;">
+            <!-- Stats Metrics Bar -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px;">
+              <div class="card" style="padding: 14px; margin-bottom: 0; background: #080808; border-color: #262626;">
+                <div style="font-size: 11px; font-weight: 700; color: #4ade80; text-transform: uppercase;">🟢 Live Subdomains</div>
+                <div id="stat-batch-live-count" style="font-size: 26px; font-weight: 800; font-family: var(--font-mono); color: #ffffff; margin-top: 4px;">0</div>
+                <div style="font-size: 11px; color: #a3a3a3; margin-top: 2px;">Responding & Resolving</div>
+              </div>
+              <div class="card" style="padding: 14px; margin-bottom: 0; background: #080808; border-color: #262626;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">🔴 Dead / Offline</div>
+                <div id="stat-batch-dead-count" style="font-size: 26px; font-weight: 800; font-family: var(--font-mono); color: #737373; margin-top: 4px;">0</div>
+                <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">NXDOMAIN / Timeout</div>
+              </div>
+              <div class="card" style="padding: 14px; margin-bottom: 0; background: #080808; border-color: #262626;">
+                <div style="font-size: 11px; font-weight: 700; color: #60a5fa; text-transform: uppercase;">🌐 Unique Live IPs</div>
+                <div id="stat-batch-ips-count" style="font-size: 26px; font-weight: 800; font-family: var(--font-mono); color: #ffffff; margin-top: 4px;">0</div>
+                <div style="font-size: 11px; color: #a3a3a3; margin-top: 2px;">Server Infrastructure</div>
+              </div>
+              <div class="card" style="padding: 14px; margin-bottom: 0; background: #080808; border-color: #262626;">
+                <div style="font-size: 11px; font-weight: 700; color: #facc15; text-transform: uppercase;">⚡ Success Rate</div>
+                <div id="stat-batch-success-rate" style="font-size: 26px; font-weight: 800; font-family: var(--font-mono); color: #ffffff; margin-top: 4px;">0%</div>
+                <div style="font-size: 11px; color: #a3a3a3; margin-top: 2px;">Verified Liveness</div>
+              </div>
+            </div>
+
+            <!-- Action Bar: Copy Live, Copy IPs, Export -->
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 14px; background: #0c0c0c; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid #1f1f1f;">
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                <button type="button" class="btn-primary" id="btn-copy-live-domains" onclick="copyBatchLiveDomains()" style="padding: 6px 14px; font-size: 12px; font-weight: 600;">
+                  📋 Copy Live Domains
+                </button>
+                <button type="button" class="action-btn" id="btn-copy-live-ips" onclick="copyBatchLiveIPs()" style="font-size: 12px; padding: 6px 12px;">
+                  📋 Copy Live IPs
+                </button>
+                <button type="button" class="action-btn" onclick="exportBatchLiveTXT()" style="font-size: 12px; padding: 6px 12px;">
+                  ⬇ Export TXT
+                </button>
+                <button type="button" class="action-btn" onclick="exportBatchLiveCSV()" style="font-size: 12px; padding: 6px 12px;">
+                  ⬇ Export CSV
+                </button>
+                <button type="button" class="action-btn" onclick="exportBatchLiveJSON()" style="font-size: 12px; padding: 6px 12px;">
+                  ⬇ Export JSON
+                </button>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button type="button" class="term-btn" onclick="sendLiveToProberTab()" style="font-size: 11px; color: #ffffff; border-color: #404040;">
+                  🚀 Open in HTTP Prober Tab →
+                </button>
+              </div>
+            </div>
+
+            <!-- Filter Tabs and Search Bar -->
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; justify-content: space-between;">
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="term-tab active" id="batch-live-tab-live" onclick="setBatchLiveFilter('live')">Live Only (<span id="tab-cnt-live">0</span>)</button>
+                <button type="button" class="term-tab" id="batch-live-tab-all" onclick="setBatchLiveFilter('all')">All Hosts (<span id="tab-cnt-all">0</span>)</button>
+                <button type="button" class="term-tab" id="batch-live-tab-dead" onclick="setBatchLiveFilter('dead')">Dead (<span id="tab-cnt-dead">0</span>)</button>
+              </div>
+              <div style="min-width: 240px; max-width: 320px; flex: 1;">
+                <input type="text" id="batch-live-search" class="cyber-input" placeholder="Search live domain or IP..." oninput="filterBatchLiveTable()" style="height: 32px; font-size: 12px; width: 100%;">
+              </div>
+            </div>
+
+            <!-- Results Table -->
+            <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+              <table class="cyber-table" id="batch-live-results-table">
+                <thead>
+                  <tr>
+                    <th style="width: 40px;">#</th>
+                    <th>Subdomain / Host</th>
+                    <th style="width: 130px;">Status</th>
+                    <th>IP Address & Infrastructure</th>
+                    <th>Details / Resolver / CNAME</th>
+                    <th style="width: 90px; text-align: right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="batch-live-tbody">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -1082,6 +1365,10 @@
       // Auto-load history data if switching to history tab
       if (tabId === 'history') {
         fetchHistoryScans();
+      }
+      // Auto-check latest batch results if switching to batch tab
+      if (tabId === 'batch') {
+        checkAndLoadLatestBatch();
       }
     }
 
@@ -1834,6 +2121,40 @@
     /* ==========================================================================
        VIEW 2: MULTI-DOMAIN BATCH QUEUE FUNCTIONS
        ========================================================================== */
+    function toggleBatchEngineDrawer() {
+      const drawer = document.getElementById('batch-engine-drawer');
+      const arrow = document.getElementById('batch-engine-drawer-arrow');
+      if (!drawer) return;
+      const isHidden = drawer.classList.contains('hidden');
+      if (isHidden) {
+        drawer.classList.remove('hidden');
+        if (arrow) arrow.textContent = '▲';
+      } else {
+        drawer.classList.add('hidden');
+        if (arrow) arrow.textContent = '▼';
+      }
+    }
+
+    function updateBatchQuickResolverLabel() {
+      const select = document.getElementById('batch-dns-resolver-target');
+      const lbl = document.getElementById('batch-quick-resolver-label');
+      if (select && lbl) {
+        lbl.textContent = select.options[select.selectedIndex].text.split('(')[0].trim();
+      }
+    }
+
+    function setAllBatchEngines(state) {
+      const ids = [
+        'batch-source-subfinder', 'batch-source-subfinder_all', 'batch-source-crtsh',
+        'batch-source-rapiddns', 'batch-source-hackertarget', 'batch-source-sslmate',
+        'batch-source-amass', 'batch-source-otx', 'batch-source-urlscan'
+      ];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = state;
+      });
+    }
+
     function updateBatchTargetCount() {
       const val = document.getElementById('batch-domains').value;
       const lines = val.split('\n').map(l => l.trim()).filter(Boolean);
@@ -1845,6 +2166,55 @@
       const domains = val.split('\n').map(l => l.trim()).filter(Boolean);
       if (domains.length === 0) {
         alert('Please enter at least one target domain.');
+        return;
+      }
+
+      // Collect selected batch sources
+      const sources = [];
+      if (document.getElementById('batch-source-subfinder') && document.getElementById('batch-source-subfinder').checked) sources.push('subfinder');
+      if (document.getElementById('batch-source-subfinder_all') && document.getElementById('batch-source-subfinder_all').checked) sources.push('subfinder_all');
+      if (document.getElementById('batch-source-crtsh') && document.getElementById('batch-source-crtsh').checked) sources.push('crtsh');
+      if (document.getElementById('batch-source-rapiddns') && document.getElementById('batch-source-rapiddns').checked) sources.push('rapiddns');
+      if (document.getElementById('batch-source-hackertarget') && document.getElementById('batch-source-hackertarget').checked) sources.push('hackertarget');
+      if (document.getElementById('batch-source-sslmate') && document.getElementById('batch-source-sslmate').checked) sources.push('sslmate');
+      if (document.getElementById('batch-source-amass') && document.getElementById('batch-source-amass').checked) sources.push('amass');
+      if (document.getElementById('batch-source-otx') && document.getElementById('batch-source-otx').checked) sources.push('otx');
+      if (document.getElementById('batch-source-urlscan') && document.getElementById('batch-source-urlscan').checked) sources.push('urlscan');
+
+      const activeDns = document.getElementById('batch-active-dns') ? document.getElementById('batch-active-dns').checked : false;
+      const activeWordlist = document.getElementById('batch-active-wordlist') ? document.getElementById('batch-active-wordlist').value : '5000';
+      const validateDns = document.getElementById('batch-validate-dns') ? document.getElementById('batch-validate-dns').checked : true;
+      const selectedResolver = document.getElementById('batch-dns-resolver-target') ? document.getElementById('batch-dns-resolver-target').value : 'all';
+      const verboseDns = document.getElementById('batch-verbose-dns') ? document.getElementById('batch-verbose-dns').checked : true;
+
+      if (sources.length === 0 && !activeDns) {
+        if (validateDns) {
+          // Smart seamless handover: User wants to directly check live domains!
+          const liveSec = document.getElementById('batch-live-section');
+          const liveInput = document.getElementById('batch-live-input');
+          const liveResolverSelect = document.getElementById('batch-live-resolver');
+          if (liveResolverSelect && selectedResolver) {
+            liveResolverSelect.value = selectedResolver;
+          }
+          if (liveSec) {
+            liveSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+          loadSubdomainsFromBatch().then(() => {
+            if (liveInput && !liveInput.value.trim() && domains.length > 0) {
+              liveInput.value = domains.join('\n');
+              updateBatchLiveInputCount();
+            }
+            runBatchLiveCheck();
+          }).catch(() => {
+            if (liveInput && domains.length > 0) {
+              liveInput.value = domains.join('\n');
+              updateBatchLiveInputCount();
+            }
+            runBatchLiveCheck();
+          });
+          return;
+        }
+        alert('Select at least one discovery source or enable active DNS brute-force for batch scanning.');
         return;
       }
 
@@ -1874,8 +2244,13 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             domains: domains,
-            validate_dns: document.getElementById('validate-dns') ? document.getElementById('validate-dns').checked : false,
-            selected_resolver: document.getElementById('dns-resolver-target') ? document.getElementById('dns-resolver-target').value : 'all'
+            sources: sources,
+            validate_dns: validateDns,
+            active_dns: activeDns,
+            active_wordlist: activeWordlist,
+            dns_resolver: selectedResolver,
+            selected_resolver: selectedResolver,
+            verbose_dns: verboseDns
           })
         });
         const data = await res.json();
@@ -1939,6 +2314,7 @@
         let actionBtns = '-';
         if (d.job_id) {
           actionBtns = `
+            <button type="button" class="action-btn" onclick="checkLiveForTargetDomain('${d.domain}', '${d.job_id}')" style="font-size:11px; padding:4px 8px; color:var(--text); border-color:#383838;" title="Check Live subdomains for ${d.domain}">⚡ Live Check</button>
             <a href="/api/results.html?job=${d.job_id}" class="action-btn" download style="font-size:11px; padding:4px 8px;">HTML</a>
             <a href="/api/results.csv?job=${d.job_id}" class="action-btn" download style="font-size:11px; padding:4px 8px;">CSV</a>
           `;
@@ -1962,6 +2338,485 @@
       } catch (e) {
         console.error('Failed to cancel batch', e);
       }
+    }
+
+    /* ==========================================================================
+       BATCH LIVE DOMAIN VERIFICATION ENGINE
+       ========================================================================== */
+    let batchDiscoveredHosts = [];
+    let batchLiveResults = [];
+    let batchLiveFilterMode = 'live';
+
+    function updateBatchLiveInputCount() {
+      const val = document.getElementById('batch-live-input').value;
+      const lines = val.split(/[\n, ]+/).map(l => l.trim()).filter(Boolean);
+      const cntSpan = document.getElementById('batch-live-input-count');
+      if (cntSpan) cntSpan.textContent = `${lines.length} host${lines.length === 1 ? '' : 's'} ready`;
+    }
+
+    function clearBatchLiveInput() {
+      const el = document.getElementById('batch-live-input');
+      if (el) el.value = '';
+      updateBatchLiveInputCount();
+    }
+
+    async function pasteBatchLiveInput() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          const el = document.getElementById('batch-live-input');
+          if (el) {
+            el.value = (el.value ? el.value + '\n' : '') + text.trim();
+            updateBatchLiveInputCount();
+          }
+        }
+      } catch (e) {
+        console.error('Failed to read clipboard', e);
+      }
+    }
+
+    function toggleBatchLiveMode() {
+      const mode = document.getElementById('batch-live-mode').value;
+      const resolverGroup = document.querySelector('#batch-live-section .resolver-group');
+      if (resolverGroup) {
+        resolverGroup.style.display = (mode === 'http') ? 'none' : 'inline-flex';
+      }
+    }
+
+    async function checkAndLoadLatestBatch() {
+      if (activeBatchId && batchPollTimer) return;
+      try {
+        const res = await fetch('/api/batch/latest');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.domains && data.domains.length > 0) {
+          activeBatchId = data.batch_id || data.id || 'latest';
+          document.getElementById('batch-results-box').classList.remove('hidden');
+          document.getElementById('batch-total-subdomains').textContent = `${data.total_subdomains_found || 0} Total Subdomains Discovered`;
+          renderBatchSummaryTable(data.domains);
+        }
+      } catch (e) {
+        console.error('Failed to auto-load latest batch', e);
+      }
+    }
+
+    async function loadSubdomainsFromBatch() {
+      const bId = activeBatchId || 'latest';
+      const btn = document.getElementById('btn-load-batch-subs');
+      if (btn) btn.textContent = '⏳ Loading...';
+      try {
+        const res = await fetch(`/api/batch/${bId}/subdomains`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to fetch batch subdomains');
+
+        activeBatchId = data.batch_id || bId;
+        batchDiscoveredHosts = data.subdomains || [];
+        const input = document.getElementById('batch-live-input');
+        if (input) {
+          input.value = batchDiscoveredHosts.join('\n');
+          updateBatchLiveInputCount();
+        }
+        if (btn) {
+          btn.textContent = `✓ Loaded (${batchDiscoveredHosts.length} Hosts)`;
+          setTimeout(() => { btn.textContent = '⚡ Load From Completed Batch'; }, 2000);
+        }
+      } catch (err) {
+        alert('Error loading batch subdomains: ' + err.message);
+        if (btn) btn.textContent = '⚡ Load From Completed Batch';
+      }
+    }
+
+    async function triggerBatchLiveCheck() {
+      const bId = activeBatchId || 'latest';
+      try {
+        const res = await fetch(`/api/batch/${bId}/subdomains`);
+        const data = await res.json();
+        if (res.ok && data.subdomains && data.subdomains.length > 0) {
+          activeBatchId = data.batch_id || bId;
+          batchDiscoveredHosts = data.subdomains;
+          const input = document.getElementById('batch-live-input');
+          if (input) {
+            input.value = batchDiscoveredHosts.join('\n');
+            updateBatchLiveInputCount();
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
+      const sec = document.getElementById('batch-live-section');
+      if (sec) {
+        sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      const raw = (document.getElementById('batch-live-input').value || '').trim();
+      if (raw) {
+        runBatchLiveCheck();
+      }
+    }
+
+    async function checkLiveForTargetDomain(domain, jobId) {
+      if (!jobId) return;
+      try {
+        const res = await fetch(`/api/status/${jobId}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load subdomains');
+
+        const subs = (data.results || []).map(r => r.subdomain).filter(Boolean);
+        if (subs.length === 0) {
+          alert(`No subdomains recorded for target ${domain}.`);
+          return;
+        }
+
+        const input = document.getElementById('batch-live-input');
+        if (input) {
+          input.value = subs.join('\n');
+          updateBatchLiveInputCount();
+        }
+
+        const sec = document.getElementById('batch-live-section');
+        if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        runBatchLiveCheck();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    async function copyBatchAllSubdomains() {
+      if (!activeBatchId) {
+        alert('No active or completed batch scan to copy.');
+        return;
+      }
+      try {
+        const res = await fetch(`/api/batch/${activeBatchId}/subdomains`);
+        const data = await res.json();
+        const subs = data.subdomains || [];
+        if (subs.length === 0) {
+          alert('No subdomains found to copy in this batch.');
+          return;
+        }
+        await navigator.clipboard.writeText(subs.join('\n'));
+        const btn = document.getElementById('btn-batch-copy-all-subs');
+        if (btn) {
+          const orig = btn.textContent;
+          btn.textContent = `✓ Copied (${subs.length} Hosts)`;
+          setTimeout(() => { btn.textContent = orig; }, 2000);
+        }
+      } catch (e) {
+        alert('Copy failed: ' + e.message);
+      }
+    }
+
+    async function downloadBatchAllSubdomains() {
+      if (!activeBatchId) {
+        alert('No active batch scan to export.');
+        return;
+      }
+      try {
+        const res = await fetch(`/api/batch/${activeBatchId}/subdomains`);
+        const data = await res.json();
+        const subs = data.subdomains || [];
+        if (subs.length === 0) {
+          alert('No subdomains to export.');
+          return;
+        }
+        const blob = new Blob([subs.join('\n')], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `subzero_batch_all_${activeBatchId}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert('Export failed: ' + e.message);
+      }
+    }
+
+    async function runBatchLiveCheck() {
+      const inputVal = (document.getElementById('batch-live-input').value || '').trim();
+      if (!inputVal) {
+        alert('Please enter or load subdomains to check for live status.');
+        return;
+      }
+
+      const hosts = inputVal.split(/[\n, ]+/).map(h => h.trim().toLowerCase()).filter(Boolean);
+      if (hosts.length === 0) {
+        alert('Please provide at least one valid subdomain.');
+        return;
+      }
+
+      const mode = document.getElementById('batch-live-mode').value;
+      const resolver = document.getElementById('batch-live-resolver').value;
+
+      const runBtn = document.getElementById('btn-run-batch-live');
+      const btnText = document.getElementById('btn-run-batch-live-text');
+      const spinner = document.getElementById('batch-live-spinner');
+      const statusText = document.getElementById('batch-live-status-text');
+      const resultsPanel = document.getElementById('batch-live-results-panel');
+
+      runBtn.disabled = true;
+      btnText.textContent = 'Verifying Live Hosts...';
+      spinner.classList.remove('hidden');
+      statusText.textContent = `Probing ${hosts.length} hosts across ${mode === 'http' ? 'HTTP/HTTPS' : 'Tier-1 DNS'}...`;
+
+      try {
+        const res = await fetch('/api/batch/live-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hosts: hosts,
+            mode: mode,
+            resolver: resolver,
+            timeout: 2.0,
+            concurrency: 40
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Live verification failed');
+
+        batchLiveResults = data.results || [];
+        renderBatchLiveDashboard(data);
+        resultsPanel.classList.remove('hidden');
+
+        resultsPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (err) {
+        alert('Live Check Error: ' + err.message);
+      } finally {
+        runBtn.disabled = false;
+        btnText.textContent = 'Verify Live Domains Now';
+        spinner.classList.add('hidden');
+      }
+    }
+
+    function renderBatchLiveDashboard(data) {
+      const liveCount = data.live_count || 0;
+      const deadCount = data.dead_count || 0;
+      const total = data.total || (liveCount + deadCount) || 1;
+      const ips = data.unique_ips || [];
+      const pct = Math.round((liveCount / total) * 100);
+
+      document.getElementById('stat-batch-live-count').textContent = liveCount;
+      document.getElementById('stat-batch-dead-count').textContent = deadCount;
+      document.getElementById('stat-batch-ips-count').textContent = ips.length;
+      document.getElementById('stat-batch-success-rate').textContent = `${pct}%`;
+
+      document.getElementById('tab-cnt-live').textContent = liveCount;
+      document.getElementById('tab-cnt-all').textContent = total;
+      document.getElementById('tab-cnt-dead').textContent = deadCount;
+
+      renderBatchLiveTable();
+    }
+
+    function setBatchLiveFilter(mode) {
+      batchLiveFilterMode = mode;
+      document.getElementById('batch-live-tab-live').classList.toggle('active', mode === 'live');
+      document.getElementById('batch-live-tab-all').classList.toggle('active', mode === 'all');
+      document.getElementById('batch-live-tab-dead').classList.toggle('active', mode === 'dead');
+      renderBatchLiveTable();
+    }
+
+    function filterBatchLiveTable() {
+      renderBatchLiveTable();
+    }
+
+    function renderBatchLiveTable() {
+      const tbody = document.getElementById('batch-live-tbody');
+      tbody.innerHTML = '';
+
+      const query = (document.getElementById('batch-live-search').value || '').trim().toLowerCase();
+
+      const filtered = (batchLiveResults || []).filter(item => {
+        if (batchLiveFilterMode === 'live' && !item.alive) return false;
+        if (batchLiveFilterMode === 'dead' && item.alive) return false;
+
+        if (query) {
+          const h = (item.host || item.subdomain || '').toLowerCase();
+          const ip = (item.primary_ip || item.ip || '').toLowerCase();
+          const ips = (item.ips || []).join(' ').toLowerCase();
+          const waf = (item.waf_provider || '').toLowerCase();
+          if (!h.includes(query) && !ip.includes(query) && !ips.includes(query) && !waf.includes(query)) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:24px;">No records matching current filter.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach((r, idx) => {
+        const tr = document.createElement('tr');
+        const host = r.host || r.subdomain || '';
+        const isLive = Boolean(r.alive);
+        const ips = r.ips || (r.ip ? [r.ip] : []);
+        const primaryIp = ips[0] || '—';
+        const cname = r.cname || '';
+        const resolver = r.resolver || r.dns_resolver || (isLive ? 'Public DNS' : 'Dead across resolvers');
+        const waf = r.waf_provider || '';
+        const statusCode = r.status_code;
+
+        let statusBadge = isLive
+          ? `<span class="badge badge-dns-live" style="background:#052e16; color:#4ade80; border:1px solid #166534;">LIVE (${statusCode ? statusCode : 'DNS'})</span>`
+          : `<span class="badge badge-dns-dead" style="background:#171717; color:#737373; border:1px solid #262626;">DEAD</span>`;
+
+        let infraDetails = primaryIp;
+        if (waf) {
+          infraDetails += ` <span class="badge badge-cached" style="font-size:10px; margin-left:4px;">${waf}</span>`;
+        }
+        if (ips.length > 1) {
+          infraDetails += ` <span style="font-size:11px; color:var(--muted);">(+${ips.length - 1} IPs)</span>`;
+        }
+
+        let extraMeta = [];
+        if (cname) extraMeta.push(`<span style="color:#94a3b8; font-size:11px;">CNAME: ${cname}</span>`);
+        if (resolver) extraMeta.push(`<span style="color:var(--muted); font-size:11px;">via ${resolver}</span>`);
+        if (r.title && r.title !== '—') extraMeta.push(`<span style="color:#e2e8f0; font-size:11px;">"${r.title.slice(0, 30)}"</span>`);
+        if (r.response_time_ms) extraMeta.push(`<span style="color:#a3a3a3; font-size:10px;">${r.response_time_ms}ms</span>`);
+
+        tr.innerHTML = `
+          <td style="color:var(--muted); font-size:11px; font-family:var(--font-mono);">${idx + 1}</td>
+          <td>
+            <a href="http://${host}" target="_blank" rel="noopener" style="font-family:var(--font-mono); font-size:13px; color:${isLive ? '#ffffff' : '#737373'}; font-weight:500; text-decoration:none;">
+              ${host}
+            </a>
+          </td>
+          <td>${statusBadge}</td>
+          <td style="font-family:var(--font-mono); font-size:12.5px;">${infraDetails}</td>
+          <td>${extraMeta.join(' • ') || '—'}</td>
+          <td style="text-align: right;">
+            <button type="button" class="row-copy-btn" onclick="navigator.clipboard.writeText('${host}'); this.textContent='✓'; setTimeout(()=>this.textContent='⎘', 1200);" title="Copy domain">⎘</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function copyBatchLiveDomains() {
+      const liveHosts = (batchLiveResults || []).filter(r => r.alive).map(r => r.host || r.subdomain);
+      if (liveHosts.length === 0) {
+        alert('No live domains found to copy.');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(liveHosts.join('\n'));
+        const btn = document.getElementById('btn-copy-live-domains');
+        if (btn) {
+          const orig = btn.textContent;
+          btn.textContent = `✓ Copied (${liveHosts.length} Live Domains)`;
+          setTimeout(() => { btn.textContent = orig; }, 2000);
+        }
+      } catch (e) {
+        alert('Clipboard copy failed: ' + e.message);
+      }
+    }
+
+    async function copyBatchLiveIPs() {
+      const ipSet = new Set();
+      (batchLiveResults || []).filter(r => r.alive).forEach(r => {
+        (r.ips || (r.ip ? [r.ip] : [])).forEach(ip => {
+          if (ip && ip.trim()) ipSet.add(ip.trim());
+        });
+      });
+      const ipsList = Array.from(ipSet);
+      if (ipsList.length === 0) {
+        alert('No resolved IPs found to copy.');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(ipsList.join('\n'));
+        const btn = document.getElementById('btn-copy-live-ips');
+        if (btn) {
+          const orig = btn.textContent;
+          btn.textContent = `✓ Copied (${ipsList.length} IPs)`;
+          setTimeout(() => { btn.textContent = orig; }, 2000);
+        }
+      } catch (e) {
+        alert('Clipboard copy failed: ' + e.message);
+      }
+    }
+
+    function exportBatchLiveTXT() {
+      const liveHosts = (batchLiveResults || []).filter(r => r.alive).map(r => r.host || r.subdomain);
+      if (liveHosts.length === 0) {
+        alert('No live domains to export.');
+        return;
+      }
+      const blob = new Blob([liveHosts.join('\n')], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `subzero_live_domains_${Date.now()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function exportBatchLiveCSV() {
+      const live = (batchLiveResults || []).filter(r => r.alive);
+      if (live.length === 0) {
+        alert('No live domains to export.');
+        return;
+      }
+      const headers = ['subdomain', 'primary_ip', 'all_ips', 'cname', 'resolver', 'waf_provider'];
+      const rows = [headers.join(',')];
+      live.forEach(r => {
+        const host = r.host || r.subdomain || '';
+        const ip = r.primary_ip || (r.ips ? r.ips[0] : '') || r.ip || '';
+        const allIps = (r.ips || []).join(';');
+        const cname = r.cname || '';
+        const resolver = (r.resolver || '').replace(/,/g, ' ');
+        const waf = (r.waf_provider || '').replace(/,/g, ' ');
+        rows.push([host, ip, `"${allIps}"`, cname, resolver, waf].join(','));
+      });
+      const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `subzero_live_domains_${Date.now()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function exportBatchLiveJSON() {
+      const live = (batchLiveResults || []).filter(r => r.alive);
+      if (live.length === 0) {
+        alert('No live domains to export.');
+        return;
+      }
+      const blob = new Blob([JSON.stringify(live, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `subzero_live_domains_${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function sendLiveToProberTab() {
+      const liveHosts = (batchLiveResults || []).filter(r => r.alive).map(r => r.host || r.subdomain);
+      if (liveHosts.length === 0) {
+        alert('No live domains to probe.');
+        return;
+      }
+      const proberInput = document.getElementById('prober-hosts');
+      if (proberInput) {
+        proberInput.value = liveHosts.join('\n');
+      }
+      if (typeof updateProberCount === 'function') {
+        updateProberCount();
+      }
+      switchPlatformTab('prober');
     }
 
     /* ==========================================================================

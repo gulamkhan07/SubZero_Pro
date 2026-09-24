@@ -183,6 +183,8 @@ Agar aap kisi ek tool ko band karna chahte hain:
 | `-w` | `--wordlist` | Wordlist size (`100`, `1000`, `5000`, `20000`) ya file path | `-w 5000` |
 | `-t` | `--threads` | Concurrent active worker threads (Default: `500`) | `-t 300` |
 | `--permute` | *(none)* | Discovered subdomains par mutation algorithm chalayein | `--permute` |
+| `--nested` | *(none)* | Multi-tenant SaaS & multi-level subzones discover karein | `--nested` |
+
 
 ---
 
