@@ -18,6 +18,9 @@ from enumerator.providers import (
     subfinder,
     subfinder_all,
     urlscan,
+    subdomain_center,
+    anubis,
+    threatminer,
 )
 from enumerator.active_scanner import dns_brute_force, check_wildcard_dns
 
@@ -25,8 +28,8 @@ from enumerator.active_scanner import dns_brute_force, check_wildcard_dns
 class RequirementChecks(unittest.TestCase):
     def test_primary_provider_order(self):
         expected = (
-            'amass', 'subfinder', 'subfinder_all', 'sslmate', 'crtsh',
-            'rapiddns', 'hackertarget', 'otx', 'urlscan'
+            'amass', 'subfinder', 'subfinder_all', 'subdomain_center', 'sslmate', 'crtsh',
+            'rapiddns', 'hackertarget', 'otx', 'urlscan', 'anubis', 'threatminer'
         )
         self.assertEqual(DEFAULT_PROVIDER_ORDER, expected)
         self.assertEqual(tuple(PROVIDERS.keys()), DEFAULT_PROVIDER_ORDER)
@@ -188,6 +191,45 @@ class RequirementChecks(unittest.TestCase):
         self.assertIn('auth.example.com', values)
         self.assertIn('ptr.example.com', values)
         self.assertNotIn('other.org', values)
+        self.assertEqual(count, 2)
+
+    @patch('enumerator.providers.retry_request')
+    def test_subdomain_center_parses_json(self, mock_retry):
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = ['api.example.com', 'portal.example.com', 'other.com']
+        mock_retry.return_value = mock_resp
+        values, err, count = subdomain_center('example.com')
+        self.assertIsNone(err)
+        self.assertIn('api.example.com', values)
+        self.assertIn('portal.example.com', values)
+        self.assertNotIn('other.com', values)
+        self.assertEqual(count, 2)
+
+    @patch('enumerator.providers.retry_request')
+    def test_anubis_parses_json(self, mock_retry):
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = ['dev.example.com', 'test.example.com']
+        mock_retry.return_value = mock_resp
+        values, err, count = anubis('example.com')
+        self.assertIsNone(err)
+        self.assertIn('dev.example.com', values)
+        self.assertEqual(count, 2)
+
+    @patch('enumerator.providers.retry_request')
+    def test_threatminer_parses_json(self, mock_retry):
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            'status_code': '200',
+            'results': ['admin.example.com', 'db.example.com']
+        }
+        mock_retry.return_value = mock_resp
+        values, err, count = threatminer('example.com')
+        self.assertIsNone(err)
+        self.assertIn('admin.example.com', values)
+        self.assertIn('db.example.com', values)
         self.assertEqual(count, 2)
 
     @patch('enumerator.active_scanner.check_wildcard_dns', return_value=True)

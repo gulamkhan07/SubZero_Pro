@@ -38,6 +38,7 @@ from enumerator.origin_verifier import verify_origin_candidates
 from enumerator.ptr_sweeper import sweep_ips_for_ptrs
 from enumerator.shodan_free import harvest_shodan_internetdb
 from enumerator.nested_engine import discover_nested_subdomains
+from enumerator.axfr_auditor import check_zone_transfer
 
 
 # ---------------------------------------------------------------------------
@@ -117,12 +118,15 @@ PROVIDER_META = {
     'subfinder': {'type': 'CLI Binary', 'speed': 'High', 'desc': 'ProjectDiscovery passive subdomain discovery binary'},
     'subfinder_all': {'type': 'CLI Binary (Deep)', 'speed': 'Medium', 'desc': 'Subfinder with all 52 external OSINT sources'},
     'amass': {'type': 'CLI Binary (Deep)', 'speed': 'Slow', 'desc': 'OWASP Amass passive in-depth network mapper'},
+    'subdomain_center': {'type': 'API / JSON', 'speed': 'High', 'desc': 'Subdomain Center public 100% free OSINT API'},
     'crtsh': {'type': 'API / HTTP', 'speed': 'High', 'desc': 'Certificate Transparency log database search'},
     'sslmate': {'type': 'API / HTTP', 'speed': 'High', 'desc': 'CertSpotter CT log stream API'},
     'rapiddns': {'type': 'Web Scraping', 'speed': 'High', 'desc': 'RapidDNS public subdomain database'},
     'hackertarget': {'type': 'API / HTTP', 'speed': 'High', 'desc': 'HackerTarget host search engine'},
     'otx': {'type': 'API / HTTP', 'speed': 'High', 'desc': 'AlienVault OTX passive DNS indicators'},
     'urlscan': {'type': 'API / HTTP', 'speed': 'High', 'desc': 'URLScan.io historical scan records'},
+    'anubis': {'type': 'API / JSON', 'speed': 'High', 'desc': 'Anubis public subdomain database'},
+    'threatminer': {'type': 'API / HTTP', 'speed': 'Medium', 'desc': 'ThreatMiner threat intelligence indicator search'},
 }
 
 
@@ -165,6 +169,7 @@ def run_cli_scan(
     ptr_sweep: bool = False,
     run_nested: bool = False,
     shodan_free: bool = True,
+    check_axfr: bool = False,
     silent: bool = False,
     verbose: bool = False,
 ) -> Dict[str, Any]:
@@ -175,11 +180,29 @@ def run_cli_scan(
 
     start_time = time.time()
     log_info(f"Target: {Colors.BOLD}{domain}{Colors.RESET}", silent)
-    log_info(f"Active engines: {', '.join(sources) + (', active-dns' if active_dns else '')}", silent)
+    log_info(f"Active engines: {', '.join(sources) + (', active-dns' if active_dns else '') + (', axfr' if check_axfr else '')}", silent)
 
     found_by: Dict[str, Set[str]] = {}
     source_counts: Dict[str, int] = {}
     errors: List[str] = []
+
+    # DNS Zone Transfer (AXFR) Pre-Flight Check (Zero-Second Jackpot)
+    axfr_data: Dict[str, Any] = {}
+    if check_axfr:
+        log_info("Auditing authoritative Name Servers for open DNS Zone Transfer (AXFR)...", silent)
+        try:
+            axfr_data = check_zone_transfer(domain, timeout=2.5)
+            if axfr_data.get('is_vulnerable'):
+                axfr_subs = axfr_data.get('subdomains', [])
+                log_warn(f"CRITICAL: Open DNS Zone Transfer (AXFR) confirmed on {len(axfr_data.get('vulnerable_nameservers', []))} nameserver(s)!", silent)
+                log_success(f"AXFR extracted {len(axfr_subs)} subdomains instantly!", silent)
+                for h in axfr_subs:
+                    found_by.setdefault(h, set()).add('axfr')
+                source_counts['axfr'] = len(axfr_subs)
+            else:
+                log_info("Zone transfer rejected by authoritative nameservers (Standard/Secure).", silent)
+        except Exception as exc:
+            errors.append(f"axfr: {exc}")
 
     def _execute_provider(name: str):
         t0 = time.time()
@@ -482,6 +505,7 @@ def run_cli_scan(
         'elapsed': elapsed,
         'cname_audits': cname_results,
         'archive_urls': archive_urls,
+        'axfr_audit': axfr_data,
     }
 
 
@@ -519,6 +543,7 @@ def write_outputs(
             'errors': scan_data.get('errors', []),
             'cname_audits': scan_data.get('cname_audits', []),
             'archive_urls': scan_data.get('archive_urls', []),
+            'axfr_audit': scan_data.get('axfr_audit', {}),
         }
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(export_payload, f, indent=2)
@@ -568,6 +593,9 @@ def display_terminal_summary(scan_data: Dict[str, Any], only_resolved: bool = Fa
         sys.stderr.write(f"  🔥 Verified True Origin IPs : {Colors.GREEN}{confirmed_origin_count}{Colors.RESET} (WAF Bypass Verified)\n")
     if wildcard_catchall_count:
         sys.stderr.write(f"  ⚠️ Wildcard Catchalls Filtered: {Colors.YELLOW}{wildcard_catchall_count}{Colors.RESET}\n")
+    axfr_info = scan_data.get('axfr_audit', {})
+    if axfr_info.get('is_vulnerable'):
+        sys.stderr.write(f"  {Colors.BOLD}{Colors.RED}🔥 CRITICAL: Open DNS Zone Transfer (AXFR) Allowed! ({axfr_info.get('total_subdomains', 0)} zone records leaked){Colors.RESET}\n")
     sys.stderr.write(f"  Execution Time              : {scan_data.get('elapsed')}s\n")
 
     # Source breakdown
@@ -635,12 +663,15 @@ def build_parser() -> argparse.ArgumentParser:
     # Individual disable flags to easily skip any tool by name
     tool_toggle_group = parser.add_argument_group("INDIVIDUAL TOOL TOGGLE FLAGS")
     tool_toggle_group.add_argument("--no-subfinder", dest="no_subfinder", action="store_true", help="Do not call subfinder")
+    tool_toggle_group.add_argument("--no-subdomain-center", dest="no_subdomain_center", action="store_true", help="Do not call Subdomain Center")
     tool_toggle_group.add_argument("--no-crtsh", dest="no_crtsh", action="store_true", help="Do not call crt.sh")
     tool_toggle_group.add_argument("--no-sslmate", dest="no_sslmate", action="store_true", help="Do not call SSLMate CertSpotter")
     tool_toggle_group.add_argument("--no-rapiddns", dest="no_rapiddns", action="store_true", help="Do not call RapidDNS")
     tool_toggle_group.add_argument("--no-hackertarget", dest="no_hackertarget", action="store_true", help="Do not call HackerTarget")
     tool_toggle_group.add_argument("--no-otx", dest="no_otx", action="store_true", help="Do not call AlienVault OTX")
     tool_toggle_group.add_argument("--no-urlscan", dest="no_urlscan", action="store_true", help="Do not call URLScan.io")
+    tool_toggle_group.add_argument("--no-anubis", dest="no_anubis", action="store_true", help="Do not call Anubis")
+    tool_toggle_group.add_argument("--no-threatminer", dest="no_threatminer", action="store_true", help="Do not call ThreatMiner")
 
     active_group = parser.add_argument_group("ACTIVE BRUTE FORCE & PERMUTATIONS")
     active_group.add_argument("-a", "--active", dest="active", action="store_true", help="Enable active DNS wordlist brute forcing")
@@ -661,6 +692,7 @@ def build_parser() -> argparse.ArgumentParser:
     dns_group.add_argument("--only-resolved", dest="only_resolved", action="store_true", help="Filter output to strictly live/resolved subdomains")
 
     security_group = parser.add_argument_group("SECURITY AUDITING & ENRICHMENT")
+    security_group.add_argument("--axfr", dest="axfr", action="store_true", help="Audit authoritative Name Servers for open DNS Zone Transfer (AXFR)")
     security_group.add_argument("--cname", dest="cname", action="store_true", help="Audit for dangling CNAME records (subdomain takeover)")
     security_group.add_argument("--probe", dest="probe", action="store_true", help="Probe HTTP/HTTPS alive status, page title, and server headers")
     security_group.add_argument("--ip-intel", dest="ip_intel", action="store_true", help="Classify IPs as Direct Origin server vs Cloudflare/CDN/WAF")
@@ -784,6 +816,9 @@ def run_interactive_wizard():
 
     # 5. Security Auditing Modules
     print(f"\n{Colors.BOLD}[?] Select Security Auditing Modules:{Colors.RESET}")
+    axfr_ans = input("  • Audit Authoritative Name Servers for DNS Zone Transfer (AXFR)? (y/n) [default: y]: ").strip().lower()
+    check_axfr = axfr_ans not in ('n', 'no')
+
     cname_ans = input("  • Audit for Dangling CNAME Takeovers? (y/n) [default: y]: ").strip().lower()
     audit_cnames = cname_ans not in ('n', 'no')
 
@@ -833,6 +868,7 @@ def run_interactive_wizard():
         ip_intel=ip_intel,
         mine_archives=mine_archives,
         run_permutations=False,
+        check_axfr=check_axfr,
         silent=False,
         verbose=True,
     )
@@ -1002,6 +1038,7 @@ def main(argv=None):
             ptr_sweep=args.ptr_sweep,
             run_nested=args.nested,
             shodan_free=not args.no_shodan_free,
+            check_axfr=args.axfr,
             silent=args.silent,
             verbose=args.verbose,
         )

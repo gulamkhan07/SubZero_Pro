@@ -139,6 +139,7 @@ def _job_view(job, include_results=True, since=0):
         'logs': all_logs[since:] if since < len(all_logs) else [],
         'total_logs': job.get('total_log_count', len(all_logs)),
         'wildcard_dns': job.get('wildcard_dns'),
+        'axfr_audit': job.get('axfr_audit'),
     }
     if include_results and job['status'] == 'completed':
         data['results'] = job['results']
@@ -325,6 +326,23 @@ def _run_scan(job_id, selected):
         if wc_info.get('is_wildcard'):
             _add_log(job, f"[!] NOTICE: Wildcard DNS (*.{main_target}) is ACTIVE -> IPs: {', '.join(wc_info['wildcard_ips'])}. False-positive catchall filtering enabled.")
     job['wildcard_dns'] = wc_info
+
+    # 2.5 Authoritative Name Servers Open Zone Transfer (AXFR) Pre-Flight Check
+    try:
+        from enumerator.axfr_auditor import check_zone_transfer
+        _add_log(job, "[*] Auditing authoritative nameservers for DNS Zone Transfer (AXFR)...")
+        axfr_res = check_zone_transfer(main_target, timeout=2.5)
+        job['axfr_audit'] = axfr_res
+        if axfr_res.get('is_vulnerable'):
+            axfr_subs = axfr_res.get('subdomains', [])
+            _add_log(job, f"[!] 🔥 CRITICAL: Authoritative nameserver allows open DNS Zone Transfer (AXFR)! Leaked {len(axfr_subs)} complete zone records!")
+            for s in axfr_subs:
+                if s != main_target:
+                    found_by.setdefault(s, set()).add('axfr')
+        else:
+            _add_log(job, f"[*] DNS Zone Transfer rejected by authoritative nameservers (Standard/Secure).")
+    except Exception as exc:
+        _add_log(job, f"[!] AXFR pre-flight notice: {exc}")
 
     # 3. Audit All Discovered Subdomains
     if job['dns_validation']:
@@ -1271,6 +1289,24 @@ def api_audit_cname():
         'cname_count': cname_count,
         'results': results
     })
+
+
+# =========================================================================
+# AUTHORITATIVE DNS ZONE TRANSFER (AXFR) AUDITOR
+# =========================================================================
+
+from enumerator.axfr_auditor import check_zone_transfer
+
+@app.post('/api/audit/axfr')
+def api_audit_axfr():
+    data = request.get_json(silent=True) or {}
+    domain = (data.get('domain') or '').strip().lower().rstrip('.')
+    if not domain or not valid_domain(domain):
+        return jsonify(error='Provide a valid root domain (e.g. example.com).'), 400
+
+    timeout = float(data.get('timeout', 2.5))
+    res = check_zone_transfer(domain, timeout=timeout)
+    return jsonify(res)
 
 
 # =========================================================================

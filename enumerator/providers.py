@@ -17,12 +17,12 @@ from enumerator.request_utils import retry_request, get_session, random_user_age
 API_URL = 'https://api.certspotter.com/v1/issuances'
 CRTSH_API_URL = 'https://crt.sh/?q=%25.{domain}&output=json'
 DEFAULT_PROVIDER_ORDER = (
-    'amass', 'subfinder', 'subfinder_all', 'sslmate', 'crtsh',
-    'rapiddns', 'hackertarget', 'otx', 'urlscan'
+    'amass', 'subfinder', 'subfinder_all', 'subdomain_center', 'sslmate', 'crtsh',
+    'rapiddns', 'hackertarget', 'otx', 'urlscan', 'anubis', 'threatminer'
 )
 # Default passive suite: fast, resilient tools (Amass is kept separate by default)
 DEFAULT_PASSIVE_PROVIDERS = (
-    'subfinder', 'crtsh', 'sslmate', 'rapiddns', 'hackertarget', 'otx', 'urlscan'
+    'subfinder', 'subdomain_center', 'crtsh', 'sslmate', 'rapiddns', 'hackertarget', 'otx', 'urlscan', 'anubis', 'threatminer'
 )
 
 TOOL_ALIASES = {
@@ -35,6 +35,10 @@ TOOL_ALIASES = {
     'amass': 'amass',
     'owasp-amass': 'amass',
     'owasp_amass': 'amass',
+    'subdomain_center': 'subdomain_center',
+    'subdomain-center': 'subdomain_center',
+    'subdomaincenter': 'subdomain_center',
+    'subdomain_center_api': 'subdomain_center',
     'crtsh': 'crtsh',
     'crt.sh': 'crtsh',
     'crt': 'crtsh',
@@ -52,6 +56,11 @@ TOOL_ALIASES = {
     'urlscan': 'urlscan',
     'urlscan.io': 'urlscan',
     'url-scan': 'urlscan',
+    'anubis': 'anubis',
+    'anubis-db': 'anubis',
+    'anubisdb': 'anubis',
+    'threatminer': 'threatminer',
+    'threat-miner': 'threatminer',
 }
 # Amass is the opt-in deep source. Its own timeout is in minutes; allow a
 # small process-level grace period so it can flush the final passive results.
@@ -60,12 +69,15 @@ PROVIDER_TIMEOUTS = {
     'amass': 930,
     'subfinder': 120,
     'subfinder_all': 180,
+    'subdomain_center': 15,
     'sslmate': 30,
     'crtsh': 30,
     'rapiddns': 20,
     'hackertarget': 15,
     'otx': 12,
     'urlscan': 30,
+    'anubis': 12,
+    'threatminer': 12,
 }
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SUBFINDER_APPDATA = PROJECT_ROOT / '.runtime'
@@ -428,6 +440,80 @@ def urlscan(domain):
         return valid, None, len(valid)
     except Exception as exc:
         return [], f'URLScan parse error: {exc}', 0
+
+
+def subdomain_center(domain):
+    """Subdomain Center 100% free public OSINT API."""
+    root = domain.lower().rstrip('.')
+    url = f'https://api.subdomain.center/?domain={root}'
+    headers = {'User-Agent': random_user_agent(), 'Accept': 'application/json'}
+    r = retry_request(
+        url, provider='subdomain_center',
+        headers=headers, timeout=PROVIDER_TIMEOUTS.get('subdomain_center', 15),
+        max_retries=2, base_delay=1.5, min_interval=0.5,
+    )
+    if not r:
+        diag = get_provider_last_error('subdomain_center')
+        return [], f'SubdomainCenter request failed: {diag}' if diag else 'SubdomainCenter request failed after retries.', 0
+    if r.status_code != 200:
+        return [], f'SubdomainCenter returned HTTP {r.status_code}', 0
+    try:
+        data = r.json()
+        if isinstance(data, list):
+            valid = _filter_valid_subdomains(data, root)
+            return valid, None, len(valid)
+        return [], 'SubdomainCenter returned non-list JSON', 0
+    except Exception as exc:
+        return [], f'SubdomainCenter parse error: {exc}', 0
+
+
+def anubis(domain):
+    """Anubis public OSINT subdomain database."""
+    root = domain.lower().rstrip('.')
+    url = f'https://jldc.me/anubis/subdomains/{root}'
+    headers = {'User-Agent': random_user_agent(), 'Accept': 'application/json'}
+    r = retry_request(
+        url, provider='anubis',
+        headers=headers, timeout=PROVIDER_TIMEOUTS.get('anubis', 12),
+        max_retries=1, base_delay=1.0, min_interval=0.5,
+    )
+    if not r:
+        diag = get_provider_last_error('anubis')
+        return [], f'Anubis request failed: {diag}' if diag else 'Anubis request failed after retries.', 0
+    if r.status_code != 200:
+        return [], f'Anubis returned HTTP {r.status_code}', 0
+    try:
+        data = r.json()
+        if isinstance(data, list):
+            valid = _filter_valid_subdomains(data, root)
+            return valid, None, len(valid)
+        return [], 'Anubis returned non-list data', 0
+    except Exception as exc:
+        return [], f'Anubis parse error: {exc}', 0
+
+
+def threatminer(domain):
+    """ThreatMiner public OSINT threat intelligence API."""
+    root = domain.lower().rstrip('.')
+    url = f'https://api.threatminer.org/v2/domain.php?q={root}&rt=5'
+    headers = {'User-Agent': random_user_agent(), 'Accept': 'application/json'}
+    r = retry_request(
+        url, provider='threatminer',
+        headers=headers, timeout=PROVIDER_TIMEOUTS.get('threatminer', 12),
+        max_retries=1, base_delay=1.0, min_interval=0.5,
+    )
+    if not r:
+        diag = get_provider_last_error('threatminer')
+        return [], f'ThreatMiner request failed: {diag}' if diag else 'ThreatMiner request failed after retries.', 0
+    if r.status_code != 200:
+        return [], f'ThreatMiner returned HTTP {r.status_code}', 0
+    try:
+        data = r.json()
+        results = data.get('results', []) if isinstance(data, dict) else []
+        valid = _filter_valid_subdomains(results, root)
+        return valid, None, len(valid)
+    except Exception as exc:
+        return [], f'ThreatMiner parse error: {exc}', 0
 
 
 PROVIDERS = {name: globals()[name] for name in DEFAULT_PROVIDER_ORDER}
