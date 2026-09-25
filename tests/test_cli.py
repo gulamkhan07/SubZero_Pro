@@ -282,3 +282,70 @@ class TestSubZeroCLI(unittest.TestCase):
             self.assertNotIn('subfinder', called)
             self.assertNotIn('crtsh', called)
             self.assertNotIn('amass', called)
+
+    @patch('enumerator.cli.dns_brute_force')
+    def test_cli_scan_active_dns_integration(self, mock_dns_brute):
+        mock_dns_brute.return_value = (['brute1.example.com', 'brute2.example.com'], None, 2)
+        data = run_cli_scan(
+            domain="example.com",
+            sources=[],
+            active_dns=True,
+            wordlist_size="1000",
+            active_threads=200,
+            silent=True
+        )
+        mock_dns_brute.assert_called_once_with(
+            domain="example.com",
+            wordlist=None,
+            max_workers=200,
+            wordlist_size="1000",
+            log_callback=None,
+            verbose=False
+        )
+        self.assertIn('brute1.example.com', data['subdomains'])
+        self.assertIn('brute2.example.com', data['subdomains'])
+        self.assertEqual(data['sources'].get('active-dns'), 2)
+        self.assertEqual(data['errors'], [])
+
+    @patch('enumerator.cli.scan_permutations')
+    def test_cli_scan_permutations_integration(self, mock_scan_perm):
+        mock_scan_perm.return_value = {
+            'results': [
+                {'host': 'dev.api.example.com', 'status': 'resolved', 'alive': True, 'ips': ['1.1.1.1']}
+            ]
+        }
+        with patch('enumerator.cli.PROVIDERS', {'otx': lambda d: (['api.example.com'], None, 1)}):
+            data = run_cli_scan(
+                domain="example.com",
+                sources=["otx"],
+                run_permutations=True,
+                silent=True
+            )
+            self.assertIn('dev.api.example.com', data['subdomains'])
+            self.assertEqual(data['errors'], [])
+
+    @patch('enumerator.cli.probe_hosts')
+    @patch('enumerator.cli.audit_hosts')
+    @patch('enumerator.cli.mine_archive_urls')
+    def test_cli_scan_archive_and_auditing_order(self, mock_archive, mock_audit, mock_probe):
+        mock_archive.return_value = {
+            'urls': ['https://archived.example.com/test'],
+            'historical_subdomains': ['archived.example.com']
+        }
+        mock_audit.return_value = [{'host': 'archived.example.com', 'status': 'safe'}]
+        mock_probe.return_value = [{'host': 'archived.example.com', 'status_code': 200}]
+
+        data = run_cli_scan(
+            domain="example.com",
+            sources=[],
+            mine_archives=True,
+            audit_cnames=True,
+            probe_http=True,
+            silent=True
+        )
+        self.assertIn('archived.example.com', data['subdomains'])
+        # Verify that archived subdomain was passed to both audit_hosts and probe_hosts
+        audited_hosts = mock_audit.call_args[0][0]
+        self.assertIn('archived.example.com', audited_hosts)
+        probed_hosts = mock_probe.call_args[0][0]
+        self.assertIn('archived.example.com', probed_hosts)

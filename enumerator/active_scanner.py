@@ -174,12 +174,17 @@ def dns_brute_force(
     max_workers: int = 500,  # Open-source safe concurrency limit for async
     wordlist_size: str = "5000",
     log_callback = None,
-    verbose: bool = True
+    verbose: bool = True,
+    **kwargs
 ) -> tuple:
     """
     Performs ultra-fast active DNS brute-forcing on domain using wordlist.
     Acts as a synchronous wrapper over the asyncio core engine.
     """
+    if 'concurrency' in kwargs:
+        max_workers = kwargs.pop('concurrency')
+    if 'wordlist_name' in kwargs:
+        wordlist_size = kwargs.pop('wordlist_name')
     def log(msg: str):
         if log_callback:
             try:

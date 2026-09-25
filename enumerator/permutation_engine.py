@@ -35,12 +35,15 @@ def generate_permutations(
     root_domain: str,
     seeds: List[str],
     custom_words: Optional[List[str]] = None,
-    max_candidates: int = 500
+    max_candidates: int = 500,
+    **kwargs
 ) -> List[Dict[str, str]]:
     """
     Generates intelligent mutation candidate subdomains based on seed hosts.
     Returns a list of dicts: {'candidate': hostname, 'rule': mutation_rule, 'source_seed': seed}
     """
+    if 'max_results' in kwargs:
+        max_candidates = kwargs.pop('max_results')
     root = root_domain.strip().lower().rstrip('.')
     if not root:
         return []

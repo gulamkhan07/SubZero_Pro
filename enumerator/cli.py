@@ -30,7 +30,7 @@ from enumerator.ip_intel import classify_ips
 from enumerator.http_prober import probe_hosts
 from enumerator.cname_auditor import audit_hosts
 from enumerator.archive_miner import mine_archive_urls
-from enumerator.permutation_engine import generate_permutations
+from enumerator.permutation_engine import generate_permutations, scan_permutations
 from enumerator.request_utils import check_network_connectivity
 from enumerator.tls_scraper import scrape_tls_sans
 from enumerator.wildcard_detector import detect_wildcard_dns, is_wildcard_false_positive
@@ -214,8 +214,8 @@ def run_cli_scan(
             active_vals, active_err, active_cnt = dns_brute_force(
                 domain=domain,
                 wordlist=None,
-                concurrency=active_threads,
-                wordlist_name=wordlist_size,
+                max_workers=active_threads,
+                wordlist_size=wordlist_size,
                 log_callback=(lambda m: log_info(f"[DNS-BRUTE] {m}", silent)) if verbose else None,
                 verbose=verbose
             )
@@ -233,17 +233,27 @@ def run_cli_scan(
     if run_permutations and found_by:
         log_info("Generating dynamic permutations and mutations on discovered subdomains...", silent)
         try:
-            perm_hosts = generate_permutations(domain, list(found_by.keys()), max_results=300)
-            log_info(f"Generated {len(perm_hosts)} permutations; resolving against public DNS...", silent)
-            with ThreadPoolExecutor(max_workers=16) as pool:
-                res_futures = {pool.submit(check_domain_multi_resolver, h, selected_resolver): h for h in perm_hosts}
-                perm_resolved = 0
-                for f in as_completed(res_futures):
-                    h = res_futures[f]
-                    res = f.result()
-                    if res.get('status') == 'resolved':
-                        found_by.setdefault(h, set()).add('permutations')
-                        perm_resolved += 1
+            perm_res = scan_permutations(
+                root_domain=domain,
+                seeds=list(found_by.keys()),
+                max_candidates=300,
+                max_workers=16,
+                specific_resolver=selected_resolver
+            )
+            perm_resolved = 0
+            for item in perm_res.get('results', []):
+                if item.get('status') == 'resolved' or item.get('alive'):
+                    h = item['host']
+                    found_by.setdefault(h, set()).add('permutations')
+                    if resolve_dns:
+                        dns_records[h] = {
+                            'status': 'resolved',
+                            'ips': item.get('ips', []),
+                            'cname': '',
+                            'resolver': item.get('resolver', selected_resolver),
+                            'summary': item.get('summary', '')
+                        }
+                    perm_resolved += 1
             log_success(f"Permutations uncovered {perm_resolved} live subdomains", silent)
         except Exception as exc:
             errors.append(f"permutations: {exc}")
@@ -359,6 +369,28 @@ def run_cli_scan(
             errors.append(f"nested_engine: {exc}")
 
 
+    # Archive Mining (if requested)
+    archive_urls: List[str] = []
+    if mine_archives:
+        log_info(f"Mining historical endpoints from Wayback Machine and AlienVault...", silent)
+        try:
+            archive_data = mine_archive_urls(domain)
+            archive_urls = archive_data.get('urls') or archive_data.get('sample_urls', [])
+            log_success(f"Archived URLs harvested: {len(archive_urls)} endpoints", silent)
+            hist_subs = archive_data.get('historical_subdomains', [])
+            new_hist = [hs for hs in hist_subs if hs != domain and hs not in found_by]
+            if new_hist:
+                log_success(f"Archive mining uncovered {len(new_hist)} historical subdomains", silent)
+                for hs in new_hist:
+                    found_by.setdefault(hs, set()).add('archive-miner')
+                if resolve_dns:
+                    with ThreadPoolExecutor(max_workers=min(20, len(new_hist))) as pool:
+                        fut_map = {pool.submit(check_domain_multi_resolver, s, selected_resolver): s for s in new_hist}
+                        for f in as_completed(fut_map):
+                            dns_records[fut_map[f]] = f.result()
+        except Exception as exc:
+            errors.append(f"archive_miner: {exc}")
+
     # CNAME Takeover Audit (if requested)
     cname_results: List[Dict[str, Any]] = []
     if audit_cnames and found_by:
@@ -384,28 +416,6 @@ def run_cli_scan(
                 probe_results[p['host']] = p
         except Exception as exc:
             errors.append(f"http_prober: {exc}")
-
-    # Archive Mining (if requested)
-    archive_urls: List[str] = []
-    if mine_archives:
-        log_info(f"Mining historical endpoints from Wayback Machine and AlienVault...", silent)
-        try:
-            archive_data = mine_archive_urls(domain)
-            archive_urls = archive_data.get('urls') or archive_data.get('sample_urls', [])
-            log_success(f"Archived URLs harvested: {len(archive_urls)} endpoints", silent)
-            hist_subs = archive_data.get('historical_subdomains', [])
-            new_hist = [hs for hs in hist_subs if hs != domain and hs not in found_by]
-            if new_hist:
-                log_success(f"Archive mining uncovered {len(new_hist)} historical subdomains", silent)
-                for hs in new_hist:
-                    found_by.setdefault(hs, set()).add('archive-miner')
-                if resolve_dns:
-                    with ThreadPoolExecutor(max_workers=min(20, len(new_hist))) as pool:
-                        fut_map = {pool.submit(check_domain_multi_resolver, s, selected_resolver): s for s in new_hist}
-                        for f in as_completed(fut_map):
-                            dns_records[fut_map[f]] = f.result()
-        except Exception as exc:
-            errors.append(f"archive_miner: {exc}")
 
     # Build Structured Results
     results = []
