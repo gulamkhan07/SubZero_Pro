@@ -115,7 +115,13 @@
 
         <!-- Collapsible Engine Drawer (Hidden by default for maximum front-page cleanliness) -->
         <div id="engine-drawer" class="engine-drawer hidden">
-          <div class="engine-section-label">CONFIGURE RECONNAISSANCE ENGINES</div>
+          <div class="engine-section-label" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>CONFIGURE RECONNAISSANCE ENGINES</span>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="term-btn" onclick="setAllSingleEngines(true)" style="font-size: 10px; padding: 2px 7px;">Select All</button>
+              <button type="button" class="term-btn" onclick="setAllSingleEngines(false)" style="font-size: 10px; padding: 2px 7px;">Clear All</button>
+            </div>
+          </div>
           <div class="toggle-row">
             <label class="engine-chip">
               <input id="source-subfinder" type="checkbox" checked>
@@ -161,6 +167,21 @@
               <input id="source-urlscan" type="checkbox" checked>
               <span class="chip-dot"></span>
               <span class="chip-label">URLScan.io</span>
+            </label>
+            <label class="engine-chip">
+              <input id="source-subdomain_center" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">Subdomain Center</span>
+            </label>
+            <label class="engine-chip">
+              <input id="source-anubis" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">Anubis DB</span>
+            </label>
+            <label class="engine-chip">
+              <input id="source-threatminer" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">ThreatMiner</span>
             </label>
 
             <!-- Active DNS Brute-Force Chip Group -->
@@ -437,6 +458,21 @@
               <input id="batch-source-urlscan" type="checkbox" checked>
               <span class="chip-dot"></span>
               <span class="chip-label">URLScan.io</span>
+            </label>
+            <label class="engine-chip">
+              <input id="batch-source-subdomain_center" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">Subdomain Center</span>
+            </label>
+            <label class="engine-chip">
+              <input id="batch-source-anubis" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">Anubis DB</span>
+            </label>
+            <label class="engine-chip">
+              <input id="batch-source-threatminer" type="checkbox" checked>
+              <span class="chip-dot"></span>
+              <span class="chip-label">ThreatMiner</span>
             </label>
 
             <!-- Batch Active DNS Brute-Force Chip Group -->
@@ -1333,6 +1369,7 @@
       "Scanning passive OSINT & reverse DNS records (HackerTarget)...",
       "Federating multi-source discovery across 52 Subfinder engines...",
       "Querying rapid DNS historical records (RapidDNS)...",
+      "Harvesting passive OSINT (Subdomain Center, Anubis DB & ThreatMiner)...",
       "Executing high-speed parallel DNS lookups...",
       "Normalizing, verifying, and ranking discovered hosts..."
     ];
@@ -1458,6 +1495,19 @@
     /* ==========================================================================
        SINGLE SCAN EXECUTION
        ========================================================================== */
+    function setAllSingleEngines(state) {
+      const ids = [
+        'source-subfinder', 'source-subfinder_all', 'source-crtsh',
+        'source-rapiddns', 'source-hackertarget', 'source-sslmate',
+        'source-amass', 'source-otx', 'source-urlscan',
+        'source-subdomain_center', 'source-anubis', 'source-threatminer'
+      ];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = state;
+      });
+    }
+
     async function startScan() {
       const domainInput = document.getElementById('domain');
       const domain = domainInput.value.trim().toLowerCase();
@@ -1467,15 +1517,18 @@
       }
 
       const sources = [];
-      if (document.getElementById('source-subfinder').checked) sources.push('subfinder');
-      if (document.getElementById('source-subfinder_all').checked) sources.push('subfinder_all');
-      if (document.getElementById('source-crtsh').checked) sources.push('crtsh');
-      if (document.getElementById('source-rapiddns').checked) sources.push('rapiddns');
+      if (document.getElementById('source-subfinder') && document.getElementById('source-subfinder').checked) sources.push('subfinder');
+      if (document.getElementById('source-subfinder_all') && document.getElementById('source-subfinder_all').checked) sources.push('subfinder_all');
+      if (document.getElementById('source-crtsh') && document.getElementById('source-crtsh').checked) sources.push('crtsh');
+      if (document.getElementById('source-rapiddns') && document.getElementById('source-rapiddns').checked) sources.push('rapiddns');
       if (document.getElementById('source-hackertarget') && document.getElementById('source-hackertarget').checked) sources.push('hackertarget');
-      if (document.getElementById('source-sslmate').checked) sources.push('sslmate');
-      if (document.getElementById('source-amass').checked) sources.push('amass');
+      if (document.getElementById('source-sslmate') && document.getElementById('source-sslmate').checked) sources.push('sslmate');
+      if (document.getElementById('source-amass') && document.getElementById('source-amass').checked) sources.push('amass');
       if (document.getElementById('source-otx') && document.getElementById('source-otx').checked) sources.push('otx');
       if (document.getElementById('source-urlscan') && document.getElementById('source-urlscan').checked) sources.push('urlscan');
+      if (document.getElementById('source-subdomain_center') && document.getElementById('source-subdomain_center').checked) sources.push('subdomain_center');
+      if (document.getElementById('source-anubis') && document.getElementById('source-anubis').checked) sources.push('anubis');
+      if (document.getElementById('source-threatminer') && document.getElementById('source-threatminer').checked) sources.push('threatminer');
 
       const activeDns = document.getElementById('active-dns').checked;
       const validateDns = document.getElementById('validate-dns').checked;
@@ -2147,7 +2200,8 @@
       const ids = [
         'batch-source-subfinder', 'batch-source-subfinder_all', 'batch-source-crtsh',
         'batch-source-rapiddns', 'batch-source-hackertarget', 'batch-source-sslmate',
-        'batch-source-amass', 'batch-source-otx', 'batch-source-urlscan'
+        'batch-source-amass', 'batch-source-otx', 'batch-source-urlscan',
+        'batch-source-subdomain_center', 'batch-source-anubis', 'batch-source-threatminer'
       ];
       ids.forEach(id => {
         const el = document.getElementById(id);
@@ -2180,6 +2234,9 @@
       if (document.getElementById('batch-source-amass') && document.getElementById('batch-source-amass').checked) sources.push('amass');
       if (document.getElementById('batch-source-otx') && document.getElementById('batch-source-otx').checked) sources.push('otx');
       if (document.getElementById('batch-source-urlscan') && document.getElementById('batch-source-urlscan').checked) sources.push('urlscan');
+      if (document.getElementById('batch-source-subdomain_center') && document.getElementById('batch-source-subdomain_center').checked) sources.push('subdomain_center');
+      if (document.getElementById('batch-source-anubis') && document.getElementById('batch-source-anubis').checked) sources.push('anubis');
+      if (document.getElementById('batch-source-threatminer') && document.getElementById('batch-source-threatminer').checked) sources.push('threatminer');
 
       const activeDns = document.getElementById('batch-active-dns') ? document.getElementById('batch-active-dns').checked : false;
       const activeWordlist = document.getElementById('batch-active-wordlist') ? document.getElementById('batch-active-wordlist').value : '5000';
