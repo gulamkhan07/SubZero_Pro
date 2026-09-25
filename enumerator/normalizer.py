@@ -1,6 +1,7 @@
 import re
 
 DOMAIN_RE = re.compile(r'^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$', re.I)
+SUBDOMAIN_RE = re.compile(r'^(?=.{1,253}$)(?:[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9_])?\.)+[a-z]{2,63}$', re.I)
 
 def clean(value: str) -> str:
     v = value.strip().lower()
@@ -20,7 +21,7 @@ def normalize_subdomains(values, root: str):
         host = clean(value)
         if not host or host == root:
             continue
-        if not DOMAIN_RE.match(host):
+        if not SUBDOMAIN_RE.match(host):
             continue
         if host.endswith(suffix):
             out.add(host)

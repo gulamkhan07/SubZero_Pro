@@ -61,23 +61,21 @@ def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str =
                 headers=PROBE_HEADERS,
                 timeout=timeout,
                 verify=False,
-                allow_redirects=True
+                allow_redirects=True,
+                stream=True
             )
             elapsed_ms = int((time.perf_counter() - t_start) * 1000)
 
             # Read at most first 32KB for title and WAF extraction to keep RAM usage minimal
             body_chunk = ""
-            if hasattr(r, 'text') and isinstance(r.text, str) and r.text:
-                body_chunk = r.text[:32768]
-            elif hasattr(r, 'iter_content'):
-                try:
-                    chunk = next(r.iter_content(32768), b"")
-                    if isinstance(chunk, bytes):
-                        body_chunk = chunk.decode('utf-8', errors='ignore')
-                    elif isinstance(chunk, str):
-                        body_chunk = chunk
-                except Exception:
-                    pass
+            try:
+                chunk = next(r.iter_content(32768), b"")
+                if isinstance(chunk, bytes):
+                    body_chunk = chunk.decode('utf-8', errors='ignore')
+                elif isinstance(chunk, str):
+                    body_chunk = chunk
+            except Exception:
+                body_chunk = getattr(r, 'text', '')[:32768] if hasattr(r, 'text') else ""
 
             title = ""
             if body_chunk:

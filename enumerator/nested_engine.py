@@ -291,11 +291,11 @@ def discover_nested_subdomains(
             cand = futures[future]
             try:
                 res = future.result()
-                if res.get("status") == "resolved" and res.get("ips"):
+                if res.get("status") == "resolved" and (res.get("ips") or res.get("cname")):
                     live_nested.add(cand)
                     if log_cb:
                         resolver = res.get("resolver", "DNS")
-                        ip_lead = res["ips"][0] if res.get("ips") else ""
+                        ip_lead = res["ips"][0] if res.get("ips") else (f"CNAME: {res.get('cname')}" if res.get('cname') else "")
                         log_cb(f"[NESTED-FOUND] 🎯 {cand} -> Live on {ip_lead} (via {resolver})")
             except Exception:
                 continue

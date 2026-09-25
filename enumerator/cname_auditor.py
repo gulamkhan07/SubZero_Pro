@@ -166,6 +166,7 @@ def _audit_single_host(host: str) -> dict:
     # Verify if CNAME is dangling or returning unclaimed asset signature
     evidence = ""
     is_dangling = False
+    connection_failed = False
 
     if HAS_REQUESTS:
         endpoints = [f"https://{host}", f"http://{host}"]
@@ -195,6 +196,7 @@ def _audit_single_host(host: str) -> dict:
                 if is_dangling:
                     break
             except Exception:
+                connection_failed = True
                 continue
             finally:
                 if resp is not None:
@@ -202,6 +204,32 @@ def _audit_single_host(host: str) -> dict:
                         resp.close()
                     except Exception:
                         pass
+
+    # If HTTP connection failed, verify whether CNAME target itself resolves
+    if not is_dangling and connection_failed:
+        target_resolves = False
+        try:
+            if HAS_DNSPYTHON:
+                r = dns.resolver.Resolver(configure=False)
+                r.nameservers = ['1.1.1.1', '8.8.8.8']
+                r.timeout = 1.5
+                r.lifetime = 1.5
+                ans = r.resolve(cname, 'A')
+                if ans and len(ans) > 0:
+                    target_resolves = True
+        except Exception:
+            pass
+
+        if not target_resolves:
+            try:
+                socket.gethostbyname(cname)
+                target_resolves = True
+            except Exception:
+                target_resolves = False
+
+        if not target_resolves:
+            is_dangling = True
+            evidence = f"CNAME target '{cname}' does not resolve (NXDOMAIN / orphaned asset)."
 
     if is_dangling:
         return {

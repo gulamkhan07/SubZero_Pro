@@ -391,8 +391,19 @@ def run_cli_scan(
         log_info(f"Mining historical endpoints from Wayback Machine and AlienVault...", silent)
         try:
             archive_data = mine_archive_urls(domain)
-            archive_urls = archive_data.get('urls', [])
+            archive_urls = archive_data.get('urls') or archive_data.get('sample_urls', [])
             log_success(f"Archived URLs harvested: {len(archive_urls)} endpoints", silent)
+            hist_subs = archive_data.get('historical_subdomains', [])
+            new_hist = [hs for hs in hist_subs if hs != domain and hs not in found_by]
+            if new_hist:
+                log_success(f"Archive mining uncovered {len(new_hist)} historical subdomains", silent)
+                for hs in new_hist:
+                    found_by.setdefault(hs, set()).add('archive-miner')
+                if resolve_dns:
+                    with ThreadPoolExecutor(max_workers=min(20, len(new_hist))) as pool:
+                        fut_map = {pool.submit(check_domain_multi_resolver, s, selected_resolver): s for s in new_hist}
+                        for f in as_completed(fut_map):
+                            dns_records[fut_map[f]] = f.result()
         except Exception as exc:
             errors.append(f"archive_miner: {exc}")
 

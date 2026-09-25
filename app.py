@@ -533,6 +533,7 @@ def scan():
 
 
 @app.get('/api/scan/<job_id>')
+@app.get('/api/status/<job_id>')
 def scan_status(job_id):
     since = request.args.get('since', 0, type=int)
     with JOBS_LOCK:
@@ -553,14 +554,57 @@ def cancel_scan(job_id):
         return jsonify(_job_view(job))
 
 def _completed_job(job_id):
-    """Helper to retrieve a completed scan job by ID."""
+    """Helper to retrieve a completed scan job by ID, with SQLite history fallback."""
     with JOBS_LOCK:
         job = JOBS.get(job_id)
-        if not job:
-            return None, (jsonify(error='Scan job not found.'), 404)
-        if job['status'] != 'completed':
-            return None, (jsonify(error='Scan is not complete yet.'), 409)
-        return job, None
+        if job:
+            if job['status'] != 'completed':
+                return None, (jsonify(error='Scan is not complete yet.'), 409)
+            return job, None
+
+    # Check SQLite database for past scan history
+    try:
+        from enumerator.history_store import _get_conn
+        with _get_conn() as conn:
+            row = conn.execute(
+                'SELECT id, domain, count, sources_json, subdomains_json FROM scan_history WHERE id = ?',
+                (job_id,)
+            ).fetchone()
+            if row:
+                subs = json.loads(row['subdomains_json'] or '[]')
+                sources = json.loads(row['sources_json'] or '{}')
+                src_list = list(sources.keys()) if sources else ['History']
+                results = [
+                    {
+                        'subdomain': s,
+                        'sources': src_list,
+                        'confidence': 'high',
+                        'dns': 'not-checked',
+                        'dns_ips': [],
+                        'cname': ''
+                    }
+                    for s in subs
+                ]
+                restored = {
+                    'id': row['id'],
+                    'domain': row['domain'],
+                    'status': 'completed',
+                    'progress': 'Completed',
+                    'results': results,
+                    'sources': sources,
+                    'errors': [],
+                    'cached': True,
+                    'dns_validation': False,
+                    'created_at': time.time(),
+                    'logs': []
+                }
+                with JOBS_LOCK:
+                    JOBS[job_id] = restored
+                return restored, None
+    except Exception:
+        pass
+
+    return None, (jsonify(error='Scan job not found.'), 404)
 
 
 @app.get('/api/results.txt')
@@ -661,7 +705,8 @@ def results_html():
 
 @app.get('/api/history')
 def api_history():
-    scans = get_recent_scans(limit=50)
+    domain = request.args.get('domain')
+    scans = get_recent_scans(limit=50, domain=domain)
     return jsonify(scans=scans, developed_by='Gulam')
 
 

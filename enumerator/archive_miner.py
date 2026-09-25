@@ -56,7 +56,7 @@ def fetch_wayback_urls(domain: str, limit: int = 2500, timeout: int = 10) -> Lis
     """Queries Wayback Machine CDX API for historical URLs with retry."""
     if not HAS_REQUESTS:
         return []
-    url = f"http://web.archive.org/cdx/search/cdx?url=*.{domain}/*&output=json&collapse=urlkey&fl=original&limit={limit}"
+    url = f"https://web.archive.org/cdx/search/cdx?url=*.{domain}/*&output=json&collapse=urlkey&fl=original&limit={limit}"
     headers = {"User-Agent": "SubdomainFinderPro-ArchiveMiner/2.2"}
     try:
         if HAS_RETRY:
@@ -210,5 +210,6 @@ def mine_archive_urls(domain: str, limit: int = 3000, timeout: int = 10) -> Dict
         "api_endpoints_count": len(api_endpoints),
         "api_endpoints": api_endpoints[:300],
         "sample_urls": clean_all_urls[:200],
+        "urls": clean_all_urls,
         "duration": round(time.time() - t0, 2)
     }

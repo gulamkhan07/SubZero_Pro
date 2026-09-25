@@ -2458,7 +2458,7 @@
     async function checkLiveForTargetDomain(domain, jobId) {
       if (!jobId) return;
       try {
-        const res = await fetch(`/api/status/${jobId}`);
+        const res = await fetch(`/api/scan/${jobId}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to load subdomains');
 
@@ -2845,7 +2845,7 @@
       selectB.innerHTML = '<option value="">Select Comparison Scan (Newer)...</option>';
 
       scans.forEach(s => {
-        const dateStr = new Date(s.timestamp).toLocaleString();
+        const dateStr = s.formatted_date || (s.timestamp ? new Date(s.timestamp * 1000).toLocaleString() : 'Past');
         const text = `${s.domain} (${dateStr}) — ${s.result_count} hosts`;
         
         const optA = document.createElement('option');
@@ -2877,7 +2877,7 @@
 
       scans.forEach(s => {
         const tr = document.createElement('tr');
-        const dateStr = new Date(s.timestamp).toLocaleString();
+        const dateStr = s.formatted_date || (s.timestamp ? new Date(s.timestamp * 1000).toLocaleString() : 'Past');
         const engines = (s.sources_used || []).join(', ');
 
         tr.innerHTML = `
@@ -3724,12 +3724,14 @@
         scans.forEach((s) => {
           const optA = document.createElement('option');
           optA.value = s.id;
-          optA.textContent = `${s.timestamp} — ${s.domain} (${s.count} subs)`;
+          const displayDate = s.formatted_date || (s.timestamp ? new Date(s.timestamp * 1000).toLocaleString() : 'Past');
+          const countNum = s.count !== undefined ? s.count : (s.result_count !== undefined ? s.result_count : 0);
+          optA.textContent = `${displayDate} — ${s.domain} (${countNum} subs)`;
           selA.appendChild(optA);
 
           const optB = document.createElement('option');
           optB.value = s.id;
-          optB.textContent = `${s.timestamp} — ${s.domain} (${s.count} subs)`;
+          optB.textContent = `${displayDate} — ${s.domain} (${countNum} subs)`;
           selB.appendChild(optB);
         });
 

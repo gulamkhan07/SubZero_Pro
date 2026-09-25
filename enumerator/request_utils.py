@@ -57,14 +57,20 @@ _throttle_lock = threading.Lock()
 
 
 def throttle(provider: str, min_interval: float = 1.0):
-    """Enforce minimum interval between requests to the same provider."""
+    """Enforce minimum interval between requests to the same provider without blocking other providers."""
+    wait = 0.0
     with _throttle_lock:
         last = _provider_timestamps.get(provider, 0.0)
         now = time.monotonic()
-        wait = min_interval - (now - last)
-        if wait > 0:
-            time.sleep(wait)
-        _provider_timestamps[provider] = time.monotonic()
+        diff = now - last
+        if diff < min_interval:
+            wait = min_interval - diff
+            _provider_timestamps[provider] = now + wait
+        else:
+            _provider_timestamps[provider] = now
+
+    if wait > 0:
+        time.sleep(wait)
 
 
 # ---------------------------------------------------------------------------
