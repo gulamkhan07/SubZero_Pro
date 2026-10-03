@@ -12,9 +12,10 @@ import uuid
 import socket
 import asyncio
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from functools import lru_cache
-from typing import List, Set
+from typing import List, Set, Tuple, Any, Optional, Dict
 
 import dns.asyncresolver
 import dns.resolver
@@ -96,14 +97,19 @@ def load_wordlist(size_or_name: str = "5000") -> List[str]:
 def check_wildcard_dns(domain: str) -> bool:
     """
     Checks if domain has a wildcard DNS record (*.domain.com) configured.
-    Returns True if random non-existent subdomain resolves.
+    Uses robust multi-probe resolver check to prevent ISP captive portal false positives.
     """
-    random_sub = f"wildcard-check-{uuid.uuid4().hex[:12]}.{domain}"
     try:
-        socket.getaddrinfo(random_sub, None)
-        return True
-    except (socket.gaierror, OSError):
-        return False
+        from enumerator.wildcard_detector import detect_wildcard_dns
+        info = detect_wildcard_dns(domain, timeout=1.5)
+        return bool(info.get('is_wildcard'))
+    except Exception:
+        random_sub = f"wildcard-check-{uuid.uuid4().hex[:12]}.{domain}"
+        try:
+            socket.getaddrinfo(random_sub, None)
+            return True
+        except (socket.gaierror, OSError):
+            return False
 
 async def _async_resolve_host(host: str, resolver: dns.asyncresolver.Resolver, sem: asyncio.Semaphore) -> tuple:
     """Asynchronous DNS resolution bounded by a semaphore."""
@@ -124,67 +130,59 @@ async def _async_resolve_host(host: str, resolver: dns.asyncresolver.Resolver, s
             latency = round((time.time() - t0) * 1000, 1)
             return host, "error", [], latency, str(exc)
 
-async def _async_dns_brute_force(candidates: List[str], max_workers: int, log_callback) -> tuple:
-    """Core async engine for DNS brute-forcing."""
-    resolver = dns.asyncresolver.Resolver()
-    # Use reliable public DNS servers for speed and to avoid ISP blocking
-    resolver.nameservers = ['1.1.1.1', '8.8.8.8', '9.9.9.9']
-    resolver.timeout = 2.0
-    resolver.lifetime = 2.0
+def _resolve_single_host(cand: str, session: Any) -> Tuple[str, str, List[str]]:
+    """
+    Resolves a candidate domain using Anycast DoH (port 443) with native OS socket fallback.
+    Immune to ISP port 53 UDP blocking and packet drops.
+    """
+    # Tier 1: Anycast Google DoH (Fast HTTP connection pooling)
+    if session:
+        try:
+            r = session.get(f"https://dns.google/resolve?name={cand}&type=A", timeout=1.5)
+            if r.status_code == 200:
+                d = r.json()
+                if d.get("Answer"):
+                    ips = [a["data"] for a in d["Answer"] if a.get("type") == 1]
+                    if ips:
+                        return cand, "resolved", ips
+                if d.get("Status") == 3 or (d.get("Status") == 0 and not d.get("Answer")):
+                    return cand, "nxdomain", []
+        except Exception:
+            pass
 
-    sem = asyncio.Semaphore(max_workers)
-    tasks = []
-    
-    discovered = set()
-    resolved_count = 0
-    nxdomain_count = 0
-    timeout_count = 0
-    done_count = 0
-    total_candidates = len(candidates)
-    
-    for cand in candidates:
-        tasks.append(asyncio.create_task(_async_resolve_host(cand, resolver, sem)))
-        
-    for coro in asyncio.as_completed(tasks):
-        host, status, ips, latency, err = await coro
-        done_count += 1
-        num_str = f"#{done_count:04d}"
-        
-        if status == "resolved":
-            discovered.add(host)
-            resolved_count += 1
-            ip_str = ', '.join(ips[:2]) if ips else 'unknown'
-            log_callback(f"[ACTIVE-DNS {num_str}] [+] {host} -> {ip_str} ({latency}ms) [RESOLVED]")
-        elif status == "timeout":
-            timeout_count += 1
-            log_callback(f"[ACTIVE-DNS {num_str}] [!] {host} -> DROPPED/TIMEOUT ({err}) after {latency}ms [TIMEOUT]")
-        elif status == "nxdomain":
-            nxdomain_count += 1
-            log_callback(f"[ACTIVE-DNS {num_str}] [-] {host} -> NXDOMAIN ({latency}ms)")
-            
-        if done_count % 500 == 0 or done_count == total_candidates:
-            pct = round((done_count / total_candidates) * 100)
-            log_callback(f"[ACTIVE-DNS PROGRESS] {done_count:,}/{total_candidates:,} ({pct}%) | Active: {resolved_count} | NXDOMAIN: {nxdomain_count} | Dropped: {timeout_count}")
-            
-    return discovered, resolved_count, nxdomain_count, timeout_count, done_count
+    # Tier 2: Native OS socket resolution (WinSock / libc)
+    try:
+        r = socket.getaddrinfo(cand, None)
+        ips = sorted({x[4][0] for x in r if x and len(x) > 4 and ":" not in x[4][0]})
+        if ips:
+            return cand, "resolved", ips
+    except Exception:
+        pass
+
+    return cand, "nxdomain", []
+
 
 def dns_brute_force(
     domain: str,
     wordlist: List[str] = None,
-    max_workers: int = 500,  # Open-source safe concurrency limit for async
+    max_workers: int = 60,
     wordlist_size: str = "5000",
     log_callback = None,
     verbose: bool = True,
+    allow_wildcard_filtering: bool = False,
+    wildcard_ips: Optional[List[str]] = None,
     **kwargs
 ) -> tuple:
     """
-    Performs ultra-fast active DNS brute-forcing on domain using wordlist.
-    Acts as a synchronous wrapper over the asyncio core engine.
+    Performs ultra-fast, firewall-resilient active DNS brute-forcing on domain using wordlist.
+    Uses scaled HTTP/2 Anycast DoH and native OS resolver fallbacks to prevent UDP port 53 blocking.
     """
     if 'concurrency' in kwargs:
         max_workers = kwargs.pop('concurrency')
     if 'wordlist_name' in kwargs:
         wordlist_size = kwargs.pop('wordlist_name')
+    if 'allow_wildcard' in kwargs:
+        allow_wildcard_filtering = kwargs.pop('allow_wildcard')
     def log(msg: str):
         if log_callback:
             try:
@@ -196,61 +194,85 @@ def dns_brute_force(
     if not root:
         return [], "Invalid root domain", 0
 
-    log(f"[*] Starting Async Active DNS Brute-Force for: {root}")
+    log(f"[*] Starting Active DNS Brute-Force for: {root}")
 
     # Wildcard check
-    log(f"[*] Probing wildcard DNS on *.{root}...")
-    if check_wildcard_dns(root):
+    wc_ip_set = set(wildcard_ips or [])
+    if wildcard_ips is not None and len(wildcard_ips) > 0:
+        is_wc = True
+    elif wildcard_ips is not None and len(wildcard_ips) == 0:
+        is_wc = False
+    else:
+        log(f"[*] Probing wildcard DNS on *.{root}...")
+        is_wc = check_wildcard_dns(root)
+
+    if is_wc and not allow_wildcard_filtering:
         msg = f"Wildcard DNS detected on *.{root}. Active brute-forcing skipped to prevent false-positive flood."
         log(f"[!] {msg}")
         return [], msg, 0
-
-    log(f"[+] Wildcard check passed. Safe to proceed.")
+    elif is_wc:
+        wc_summary = ', '.join(sorted(wc_ip_set)) if wc_ip_set else 'catchall baseline'
+        log(f"[!] Wildcard DNS active on *.{root} ({wc_summary}). Intelligent baseline IP filtering engaged to isolate true subdomains.")
+    else:
+        log(f"[+] Wildcard check passed. Safe to proceed.")
 
     words = wordlist if wordlist is not None else load_wordlist(wordlist_size)
     candidates = [f"{w.strip().lower()}.{root}" for w in words if w.strip()]
     total_candidates = len(candidates)
     
-    # Bound max_workers to an open-source friendly safe limit (e.g. 50-1000)
-    effective_workers = max(10, min(int(max_workers) if max_workers else 500, 1500))
-    
-    log(f"[*] Wordlist loaded: {total_candidates:,} queries using {effective_workers} async tasks.")
+    effective_workers = max(10, min(int(max_workers) if max_workers else 60, 80))
+    progress_interval = 250 if total_candidates > 5000 else 100
+    log(f"[*] Wordlist loaded: {total_candidates:,} queries using {effective_workers} concurrent resolver threads.")
 
     t_start = time.time()
-    
-    # Launch async event loop safely (handle case where a loop is already running)
+    discovered: Set[str] = set()
+    resolved_count = 0
+    nxdomain_count = 0
+    done_count = 0
+    lock = threading.Lock()
+
+    import requests
+    from requests.adapters import HTTPAdapter
+    session = requests.Session()
+    adapter = HTTPAdapter(pool_connections=effective_workers, pool_maxsize=effective_workers, max_retries=1)
+    session.mount("https://", adapter)
+    session.headers.update({"Accept": "application/dns-json"})
+
     try:
-        try:
-            asyncio.get_running_loop()
-            # An event loop is already running (e.g. inside WSGI/async context).
-            # Run the coroutine in a dedicated thread with its own event loop.
-            result_container = [None]
-            exc_container = [None]
-            def _run_in_thread():
+        with ThreadPoolExecutor(max_workers=effective_workers) as pool:
+            futures = {pool.submit(_resolve_single_host, cand, session): cand for cand in candidates}
+            for fut in as_completed(futures):
                 try:
-                    result_container[0] = asyncio.run(
-                        _async_dns_brute_force(candidates, effective_workers, log)
-                    )
-                except Exception as e:
-                    exc_container[0] = e
-            t = threading.Thread(target=_run_in_thread)
-            t.start()
-            t.join()
-            if exc_container[0]:
-                raise exc_container[0]
-            discovered, resolved_count, nxdomain_count, timeout_count, done_count = result_container[0]
-        except RuntimeError:
-            # No event loop running — safe to use asyncio.run() directly
-            discovered, resolved_count, nxdomain_count, timeout_count, done_count = asyncio.run(
-                _async_dns_brute_force(candidates, effective_workers, log)
-            )
-    except Exception as e:
-        log(f"[!] Async execution failed: {str(e)}")
-        return [], f"Async error: {str(e)}", 0
+                    cand, status, ips = fut.result()
+                except Exception:
+                    cand, status, ips = futures[fut], "nxdomain", []
+
+                with lock:
+                    done_count += 1
+                    if status == "resolved" and ips:
+                        if is_wc and wc_ip_set and set(ips).issubset(wc_ip_set):
+                            nxdomain_count += 1
+                        else:
+                            resolved_count += 1
+                            discovered.add(cand)
+                            num_str = f"#{done_count:04d}"
+                            ip_str = ', '.join(ips[:2])
+                            log(f"[ACTIVE-DNS {num_str}] [+] {cand} -> {ip_str} [RESOLVED]")
+                    else:
+                        nxdomain_count += 1
+
+                    if done_count % progress_interval == 0 or done_count == total_candidates:
+                        pct = round((done_count / total_candidates) * 100) if total_candidates else 100
+                        log(f"[ACTIVE-DNS PROGRESS] {done_count:,}/{total_candidates:,} ({pct}%) | Testing: {cand} | Active: {resolved_count} | NXDOMAIN: {nxdomain_count}")
+    finally:
+        try:
+            session.close()
+        except Exception:
+            pass
 
     dur = round(time.time() - t_start, 2)
     rate = round(done_count / max(dur, 0.05))
-    log(f"[ACTIVE-DNS COMPLETE] Finished {done_count:,} queries in {dur}s (~{rate:,} qps) — Active: {resolved_count}, NXDOMAIN: {nxdomain_count}, Dropped: {timeout_count}.")
+    log(f"[ACTIVE-DNS COMPLETE] Finished {done_count:,} queries in {dur}s (~{rate:,} qps) — Active: {resolved_count}, NXDOMAIN: {nxdomain_count}.")
 
     results = sorted(discovered)
     return results, None, len(results)

@@ -20,7 +20,7 @@ DEFAULT_PROVIDER_ORDER = (
     'amass', 'subfinder', 'subfinder_all', 'subdomain_center', 'sslmate', 'crtsh',
     'rapiddns', 'hackertarget', 'otx', 'urlscan', 'anubis', 'threatminer'
 )
-# Default passive suite: fast, resilient tools (Amass is kept separate by default)
+# Default passive suite: fast, resilient tools (Amass opt-in)
 DEFAULT_PASSIVE_PROVIDERS = (
     'subfinder', 'subdomain_center', 'crtsh', 'sslmate', 'rapiddns', 'hackertarget', 'otx', 'urlscan', 'anubis', 'threatminer'
 )
@@ -380,7 +380,7 @@ def hackertarget(domain):
         return [], f'HackerTarget returned HTTP {r.status_code}', 0
     text = r.text.strip()
     if 'API count exceeded' in text:
-        return [], 'HackerTarget daily rate limit reached (free tier). Try again after 24h or use other engines.', 0
+        return [], 'HackerTarget daily rate limit reached (free tier quota). Gracefully skipped - remaining engines active.', 0
     if 'error' in text.lower() and len(text.splitlines()) <= 2:
         return [], f'HackerTarget: {text}', 0
     raw = [line.split(',')[0] for line in text.splitlines() if line]

@@ -34,18 +34,27 @@ PROBE_HEADERS = {
 
 def _resolve_host_ip(host: str) -> str:
     try:
+        infos = socket.getaddrinfo(host, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        if infos:
+            for family, _, _, _, sockaddr in infos:
+                if family == socket.AF_INET:
+                    return sockaddr[0]
+            return infos[0][4][0]
+    except Exception:
+        pass
+    try:
         return socket.gethostbyname(host)
     except Exception:
         return ""
 
 
-def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str = None) -> dict:
+def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str = None, known_ip: str = "") -> dict:
     host = host.strip().lower()
     if not host:
         return {}
 
-    # Quick IP resolution for WAF / origin matching
-    resolved_ip = _resolve_host_ip(host)
+    # Quick IP resolution for WAF / origin matching (use known_ip from DNS if provided)
+    resolved_ip = known_ip or _resolve_host_ip(host)
     ip_classification = classify_ip(resolved_ip) if resolved_ip else None
 
     # Try HTTPS first, fallback to HTTP
@@ -90,9 +99,25 @@ def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str =
 
             status = r.status_code
             final_url = r.url
+            hist_list = getattr(r, 'history', None)
+            redirect_chain = [getattr(hist, 'url', str(hist)) for hist in hist_list] if isinstance(hist_list, (list, tuple)) else []
+
+            # Check if redirected to a third-party host (Phase 18)
+            from urllib.parse import urlparse
+            final_host = (urlparse(final_url).hostname or "").lower()
+            orig_host = host.lower()
+            is_third_party_redirect = bool(final_host and not (final_host == orig_host or final_host.endswith(f".{orig_host}") or orig_host.endswith(f".{final_host}")))
 
             # Multi-tier WAF analysis: HTTP headers/body signatures + IP CIDR
-            waf_info = detect_waf_from_http(headers_dict, body_chunk, status)
+            # If third-party redirected, check initial response to avoid attributing external provider WAF
+            if is_third_party_redirect and isinstance(hist_list, (list, tuple)) and hist_list:
+                first_h = hist_list[0]
+                init_headers = dict(first_h.headers) if hasattr(first_h, 'headers') and isinstance(getattr(first_h, 'headers', None), (dict, list)) else {}
+                init_status = getattr(first_h, 'status_code', 0)
+                waf_info = detect_waf_from_http(init_headers, "", init_status)
+            else:
+                waf_info = detect_waf_from_http(headers_dict, body_chunk, status)
+
             waf_detected = False
             waf_provider = ""
             waf_badge = "waf"
@@ -132,6 +157,7 @@ def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str =
                 'response_time_ms': elapsed_ms,
                 'url': final_url,
                 'protocol': 'https' if final_url.startswith('https') else 'http',
+                'redirect_chain': redirect_chain,
                 'error': None
             }
         except requests.exceptions.SSLError:
@@ -205,15 +231,16 @@ def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str =
     }
 
 
-def probe_hosts(hosts: list, max_workers: int = 15, timeout: float = 3.0, specific_resolver: str = None, **kwargs) -> list:
+def probe_hosts(hosts: list, max_workers: int = 15, timeout: float = 3.0, specific_resolver: str = None, host_ips: dict = None, **kwargs) -> list:
     unique_hosts = sorted(set(h.strip().lower() for h in hosts if h.strip()))
     if not unique_hosts:
         return []
 
     effective_workers = max(1, min(int(max_workers) if max_workers else 15, 20, len(unique_hosts)))
     results = []
+    host_ips_map = host_ips or {}
     with ThreadPoolExecutor(max_workers=effective_workers) as pool:
-        futures = [pool.submit(_probe_single_host, h, timeout, specific_resolver) for h in unique_hosts]
+        futures = [pool.submit(_probe_single_host, h, timeout, specific_resolver, host_ips_map.get(h, "")) for h in unique_hosts]
         for f in as_completed(futures):
             res = f.result()
             if res:

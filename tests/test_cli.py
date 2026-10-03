@@ -45,7 +45,6 @@ class TestSubZeroCLI(unittest.TestCase):
             "--cname",
             "--probe",
             "--ip-intel",
-            "--archive",
             "-o", "out.txt",
             "-oJ", "out.json",
             "-oCSV", "out.csv",
@@ -68,7 +67,6 @@ class TestSubZeroCLI(unittest.TestCase):
         self.assertTrue(args.cname)
         self.assertTrue(args.probe)
         self.assertTrue(args.ip_intel)
-        self.assertTrue(args.archive)
         self.assertEqual(args.output, "out.txt")
         self.assertEqual(args.json, "out.json")
         self.assertEqual(args.csv, "out.csv")
@@ -326,26 +324,20 @@ class TestSubZeroCLI(unittest.TestCase):
 
     @patch('enumerator.cli.probe_hosts')
     @patch('enumerator.cli.audit_hosts')
-    @patch('enumerator.cli.mine_archive_urls')
-    def test_cli_scan_archive_and_auditing_order(self, mock_archive, mock_audit, mock_probe):
-        mock_archive.return_value = {
-            'urls': ['https://archived.example.com/test'],
-            'historical_subdomains': ['archived.example.com']
-        }
-        mock_audit.return_value = [{'host': 'archived.example.com', 'status': 'safe'}]
-        mock_probe.return_value = [{'host': 'archived.example.com', 'status_code': 200}]
+    def test_cli_scan_auditing_and_probing_order(self, mock_audit, mock_probe):
+        mock_audit.return_value = [{'host': 'found.example.com', 'status': 'safe'}]
+        mock_probe.return_value = [{'host': 'found.example.com', 'status_code': 200}]
 
-        data = run_cli_scan(
-            domain="example.com",
-            sources=[],
-            mine_archives=True,
-            audit_cnames=True,
-            probe_http=True,
-            silent=True
-        )
-        self.assertIn('archived.example.com', data['subdomains'])
-        # Verify that archived subdomain was passed to both audit_hosts and probe_hosts
-        audited_hosts = mock_audit.call_args[0][0]
-        self.assertIn('archived.example.com', audited_hosts)
-        probed_hosts = mock_probe.call_args[0][0]
-        self.assertIn('archived.example.com', probed_hosts)
+        with patch('enumerator.cli.PROVIDERS', {'otx': lambda d: (['found.example.com'], None, 1)}):
+            data = run_cli_scan(
+                domain="example.com",
+                sources=["otx"],
+                audit_cnames=True,
+                probe_http=True,
+                silent=True
+            )
+            self.assertIn('found.example.com', data['subdomains'])
+            audited_hosts = mock_audit.call_args[0][0]
+            self.assertIn('found.example.com', audited_hosts)
+            probed_hosts = mock_probe.call_args[0][0]
+            self.assertIn('found.example.com', probed_hosts)

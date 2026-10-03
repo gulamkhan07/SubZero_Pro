@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=2026_monochrome_noir">
+  <link rel="stylesheet" href="/static/style.css?v=2026_wildcard_engines_v4">
 </head>
 <body>
 
@@ -39,10 +39,6 @@
           <button type="button" class="nav-tab" id="tab-btn-permutations" onclick="switchPlatformTab('permutations')">
             <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span>
             <span class="nav-title">Permutations</span>
-          </button>
-          <button type="button" class="nav-tab" id="tab-btn-archive" onclick="switchPlatformTab('archive')">
-            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></span>
-            <span class="nav-title">Archive Miner</span>
           </button>
           <button type="button" class="nav-tab" id="tab-btn-auditor" onclick="switchPlatformTab('auditor')">
             <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
@@ -101,7 +97,7 @@
         <div class="quick-toolbar">
           <button type="button" class="drawer-toggle-btn" id="btn-toggle-engines" onclick="toggleEngineDrawer()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg><span>Configure Engines & Resolvers</span>
-            <span id="engine-drawer-arrow">▼</span>
+            <span id="engine-drawer-arrow">▲</span>
           </button>
           <button type="button" class="drawer-toggle-btn" id="btn-toggle-terminal" onclick="toggleTerminalBox()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><span>Telemetry Terminal</span>
@@ -113,8 +109,8 @@
           </div>
         </div>
 
-        <!-- Collapsible Engine Drawer (Hidden by default for maximum front-page cleanliness) -->
-        <div id="engine-drawer" class="engine-drawer hidden">
+        <!-- Open Engine Drawer (Visible by default) -->
+        <div id="engine-drawer" class="engine-drawer">
           <div class="engine-section-label" style="display: flex; justify-content: space-between; align-items: center;">
             <span>CONFIGURE RECONNAISSANCE ENGINES</span>
             <div style="display: flex; gap: 8px;">
@@ -185,13 +181,13 @@
             </label>
 
             <!-- Active DNS Brute-Force Chip Group -->
-            <div class="active-group">
-              <label class="engine-chip chip-active" style="border:none; background:transparent; padding:0;">
-                <input id="active-dns" type="checkbox">
+            <div class="active-group" id="active-dns-group">
+              <label class="engine-chip chip-active" id="chip-active-dns" style="border:none; background:transparent; padding:0; cursor:pointer;">
+                <input id="active-dns" type="checkbox" style="cursor:pointer;">
                 <span class="chip-dot"></span>
-                <span class="chip-label">Active DNS Brute-Force</span>
+                <span class="chip-label" style="cursor:pointer;">Active DNS Brute-Force</span>
               </label>
-              <select id="active-wordlist" class="wordlist-select" title="Dictionary size for DNS brute-forcing">
+              <select id="active-wordlist" class="wordlist-select" title="Dictionary size for DNS brute-forcing" onchange="onActiveWordlistChange(this.value)">
                 <option value="5000" selected>Top 5,000 (SecLists)</option>
                 <option value="10000">Deep 10,000 (SecLists)</option>
                 <option value="20000">Extreme 20,000</option>
@@ -278,8 +274,8 @@
                 <span class="dot-green"></span>
               </div>
               <div class="terminal-tabs">
-                <button type="button" class="term-tab active" id="tab-active-dns" onclick="setTerminalFilter('active-dns')">🎯 Active DNS Only</button>
-                <button type="button" class="term-tab" id="tab-all" onclick="setTerminalFilter('all')">All Logs</button>
+                <button type="button" class="term-tab active" id="tab-all" onclick="setTerminalFilter('all')">All Logs</button>
+                <button type="button" class="term-tab" id="tab-active-dns" onclick="setTerminalFilter('active-dns')">🎯 Active DNS Only</button>
                 <button type="button" class="term-tab" id="tab-resolved" onclick="setTerminalFilter('resolved')">✅ Resolved Only</button>
               </div>
             </div>
@@ -335,13 +331,72 @@
               <p id="source-stats" class="muted stats-line"></p>
             </div>
             <div class="actions">
-              <a id="link-html" href="#" class="action-btn action-btn-html" download title="Download Executive HTML Report">HTML Report</a>
-              <a id="link-txt" href="#" class="action-btn" download>TXT</a>
-              <a id="link-csv" href="#" class="action-btn" download>CSV</a>
-              <a id="link-json" href="#" class="action-btn" download>JSON</a>
-              <a id="link-ips" href="#" class="action-btn action-btn-ips" download title="Download clean list of resolved unique IP addresses">IPs (.txt)</a>
+              <!-- Unified Download / Export Dropdown Menu -->
+              <div class="dropdown-wrapper" id="download-dropdown-wrapper">
+                <button type="button" class="action-btn action-btn-download-main" id="btn-download-menu" onclick="toggleDownloadDropdown(event)" title="Export discovered recon assets in multiple formats">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  <span id="btn-download-text">Download</span>
+                  <span class="dropdown-caret">▾</span>
+                </button>
+                <div class="dropdown-menu hidden" id="download-dropdown-menu">
+                  <div class="dropdown-menu-header">AVAILABLE EXPORTS</div>
+                  <a id="link-html" href="#" class="dropdown-item" download title="Interactive Executive HTML Report with WAF/Direct Origin breakdown">
+                    <span class="item-icon">🌐</span>
+                    <div class="item-content">
+                      <span class="item-title">HTML Report</span>
+                      <span class="item-desc">Interactive executive dashboard & asset matrix</span>
+                    </div>
+                    <span class="item-ext">.html</span>
+                  </a>
+                  <a id="link-txt" href="#" class="dropdown-item" download title="Plain text subdomains list">
+                    <span class="item-icon">📄</span>
+                    <div class="item-content">
+                      <span class="item-title">Subdomains List</span>
+                      <span class="item-desc">One clean subdomain per line</span>
+                    </div>
+                    <span class="item-ext">.txt</span>
+                  </a>
+                  <a id="link-csv" href="#" class="dropdown-item" download title="Full spreadsheet inventory with IP, WAF & DNS data">
+                    <span class="item-icon">📊</span>
+                    <div class="item-content">
+                      <span class="item-title">CSV Inventory</span>
+                      <span class="item-desc">Subdomains, IPs, WAF status, Sources & Confidence</span>
+                    </div>
+                    <span class="item-ext">.csv</span>
+                  </a>
+                  <a id="link-json" href="#" class="dropdown-item" download title="Complete machine-readable JSON dataset">
+                    <span class="item-icon">📦</span>
+                    <div class="item-content">
+                      <span class="item-title">JSON Dataset</span>
+                      <span class="item-desc">Complete machine-readable recon dataset</span>
+                    </div>
+                    <span class="item-ext">.json</span>
+                  </a>
+                  <a id="link-shodan-json" href="#" class="dropdown-item" download title="Exact 1:1 Shodan Domain API JSON schema">
+                    <span class="item-icon">⚡</span>
+                    <div class="item-content">
+                      <span class="item-title">Shodan JSON Format</span>
+                      <span class="item-desc">Exact 1:1 Shodan Domain API schema for backend integration</span>
+                    </div>
+                    <span class="item-ext">.json</span>
+                  </a>
+                  <a id="link-ips" href="#" class="dropdown-item" download title="Resolved unique IP addresses list">
+                    <span class="item-icon">🎯</span>
+                    <div class="item-content">
+                      <span class="item-title">Resolved IP List</span>
+                      <span class="item-desc">Deduplicated unique live IP addresses</span>
+                    </div>
+                    <span class="item-ext">.txt</span>
+                  </a>
+                </div>
+              </div>
+
+              <!-- Recon Tools & Action Buttons -->
               <button type="button" id="btn-to-permutations" class="action-btn action-btn-permute" onclick="sendDiscoveredToPermutations()" title="Mutate discovered subdomains to uncover hidden staging/dev assets">Permute</button>
-              <button type="button" id="btn-to-archive" class="action-btn action-btn-archive" onclick="sendDomainToArchiveMiner()" title="Extract historical URLs & sensitive endpoints from Internet Archive">Archive URLs</button>
               <button type="button" id="btn-to-auditor" class="action-btn action-btn-auditor" onclick="sendDiscoveredToAuditor()" title="Audit DNS CNAMEs for dangling cloud pointers">CNAME Audit</button>
               <button type="button" id="btn-to-prober" class="action-btn action-btn-probe" onclick="sendDiscoveredToProber()" title="Send discovered subdomains to the Live HTTP Prober">Probe Status</button>
               <button type="button" id="btn-open-diff" class="action-btn action-btn-diff" onclick="openDiffModal()" title="Compare current scan against previous scans to identify newly added (+) or removed (-) subdomains">Delta Diff</button>
@@ -350,12 +405,29 @@
             </div>
           </div>
 
-          <!-- Real-Time Filter Bar -->
+          <!-- Real-Time Search Bar & Status Filter Pills -->
           <div class="filter-row">
             <div class="filter-wrapper">
               <span class="filter-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-              <input id="filter-input" type="text" placeholder="Filter subdomains (e.g. admin, api, vpn, mail)..." oninput="filterResults()">
+              <input id="filter-input" type="text" placeholder="Search discovered subdomains (e.g. admin, api, vpn, mail)..." oninput="filterResults()">
               <button type="button" id="filter-clear-btn" class="filter-clear hidden" onclick="clearFilter()">✕</button>
+            </div>
+            <!-- Clean Live & Dead Filter Pills -->
+            <div class="filter-pills" id="status-filter-pills">
+              <button type="button" class="filter-pill active" id="pill-all" onclick="setStatusFilter('all')">
+                <span>All</span>
+                <span class="pill-count" id="pill-count-all">0</span>
+              </button>
+              <button type="button" class="filter-pill pill-live" id="pill-live" onclick="setStatusFilter('live')">
+                <span class="pill-dot dot-live"></span>
+                <span>Live</span>
+                <span class="pill-count" id="pill-count-live">0</span>
+              </button>
+              <button type="button" class="filter-pill pill-dead" id="pill-dead" onclick="setStatusFilter('dead')">
+                <span class="pill-dot dot-dead"></span>
+                <span>Dead</span>
+                <span class="pill-count" id="pill-count-dead">0</span>
+              </button>
             </div>
             <div id="filter-counter" class="filter-counter hidden">Showing 0 of 0</div>
           </div>
@@ -476,13 +548,13 @@
             </label>
 
             <!-- Batch Active DNS Brute-Force Chip Group -->
-            <div class="active-group">
-              <label class="engine-chip chip-active" style="border:none; background:transparent; padding:0;">
+            <div class="active-group" id="batch-active-dns-group">
+              <label class="engine-chip chip-active" id="batch-chip-active-dns">
                 <input id="batch-active-dns" type="checkbox">
                 <span class="chip-dot"></span>
                 <span class="chip-label">Active DNS Brute-Force</span>
               </label>
-              <select id="batch-active-wordlist" class="wordlist-select" title="Dictionary size for DNS brute-forcing">
+              <select id="batch-active-wordlist" class="wordlist-select" title="Dictionary size for DNS brute-forcing" onchange="onBatchActiveWordlistChange(this.value)">
                 <option value="5000" selected>Top 5,000 (SecLists)</option>
                 <option value="10000">Deep 10,000 (SecLists)</option>
                 <option value="20000">Extreme 20,000</option>
@@ -1169,90 +1241,6 @@
       </section>
     </div>
 
-    <!-- ==================================================================== -->
-    <!-- VIEW 7: HISTORICAL ARCHIVE & WAYBACK URL MINER                       -->
-    <!-- ==================================================================== -->
-    <div id="view-archive" class="platform-view hidden">
-      <section class="card hero">
-        <div class="brand-row">
-          <div>
-            <div class="eyebrow-badge">
-              <span class="pulse-dot"></span>
-              <span>WAYBACK & HISTORICAL RECON</span>
-            </div>
-            <h2>Historical Archive URL Miner</h2>
-          </div>
-          <div class="brand-right">
-            <div class="developer-pill">
-              <span class="dev-badge-dot"></span>
-              <span class="dev-text">Developed by <strong class="dev-author">Gulam</strong></span>
-            </div>
-          </div>
-        </div>
-        <p class="muted">Queries Internet Archive (Wayback Machine) and AlienVault OTX to extract historical subdomains, leaked configuration files (.env, .git, .sql, .zip), and sensitive parameter endpoints.</p>
-
-        <div class="batch-input-card">
-          <div class="row" style="margin-top: 0;">
-            <div class="input-wrapper">
-              <span class="input-icon">📜</span>
-              <input id="archive-domain-input" type="text" placeholder="Enter target domain, e.g. example.com" autocomplete="off" spellcheck="false">
-            </div>
-            <button id="archive-mine-btn" type="button" class="btn-primary" onclick="startArchiveMining()">
-              <span>Mine Historical Archives</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Archive Results Container -->
-        <div id="archive-results-box" class="diff-output-card hidden">
-          <div class="diff-metric-grid">
-            <div class="metric-card metric-unchanged">
-              <div class="metric-val" id="archive-metric-total">0</div>
-              <div class="metric-lbl">Total Archived URLs</div>
-            </div>
-            <div class="metric-card metric-added">
-              <div class="metric-val" id="archive-metric-subs">0</div>
-              <div class="metric-lbl">Historical Subdomains</div>
-            </div>
-            <div class="metric-card metric-removed">
-              <div class="metric-val" id="archive-metric-sensitive">0</div>
-              <div class="metric-lbl">Sensitive Files / Leaks</div>
-            </div>
-            <div class="metric-card" style="border-color: rgba(245, 158, 11, 0.35);">
-              <div class="metric-val" style="color: #fbbf24;" id="archive-metric-params">0</div>
-              <div class="metric-lbl">Parameter URLs</div>
-            </div>
-          </div>
-
-          <!-- Category Sub-Tabs -->
-          <div class="terminal-tabs" style="margin-bottom: 14px; background: rgba(0,0,0,0.5); padding: 5px;">
-            <button type="button" class="term-tab active" id="tab-archive-sensitive" onclick="switchArchiveCategory('sensitive')">🔴 Sensitive Files (<span id="count-cat-sensitive">0</span>)</button>
-            <button type="button" class="term-tab" id="tab-archive-params" onclick="switchArchiveCategory('params')">🔑 Parameters (<span id="count-cat-params">0</span>)</button>
-            <button type="button" class="term-tab" id="tab-archive-subs" onclick="switchArchiveCategory('subs')">🌐 Historical Subdomains (<span id="count-cat-subs">0</span>)</button>
-            <button type="button" class="term-tab" id="tab-archive-api" onclick="switchArchiveCategory('api')">⚡ API Routes (<span id="count-cat-api">0</span>)</button>
-            <button type="button" class="term-tab" id="tab-archive-all" onclick="switchArchiveCategory('all')">All URLs</button>
-          </div>
-
-          <div class="filter-row">
-            <div class="filter-wrapper">
-              <span class="filter-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-              <input id="archive-filter-input" type="text" placeholder="Filter archive results..." oninput="filterArchiveResults()">
-            </div>
-            <button type="button" class="term-btn" onclick="copyCurrentArchiveCategory()">Copy Current List</button>
-          </div>
-
-          <div class="table-responsive">
-            <table class="cyber-table" id="archive-table">
-              <thead id="archive-thead">
-                <!-- Dynamically switched per category -->
-              </thead>
-              <tbody id="archive-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-    </div>
-
     <!-- Cyber Footer Attribution -->
     <footer class="cyber-footer">
       <div class="footer-wrap">
@@ -1355,7 +1343,45 @@
     let lastLogIndex = 0;
     let autoScroll = true;
     let allReceivedLogs = [];
-    let currentLogFilter = 'active-dns';
+    let currentLogFilter = 'all';
+    let currentStatusFilter = 'all';
+
+    function toggleEngineDrawer() {
+      const drawer = document.getElementById('engine-drawer');
+      const arrow = document.getElementById('engine-drawer-arrow');
+      if (!drawer) return;
+      const isHidden = drawer.classList.contains('hidden');
+      if (isHidden) {
+        drawer.classList.remove('hidden');
+        if (arrow) arrow.textContent = '▲';
+      } else {
+        drawer.classList.add('hidden');
+        if (arrow) arrow.textContent = '▼';
+      }
+    }
+
+    function toggleTerminalBox() {
+      const box = document.getElementById('terminal-box');
+      if (!box) return;
+      box.classList.toggle('hidden');
+      const btn = document.getElementById('btn-toggle-terminal');
+      if (btn) {
+        const isHidden = box.classList.contains('hidden');
+        btn.style.borderColor = isHidden ? 'var(--border)' : 'var(--accent-cyan, #00f2fe)';
+        btn.style.color = isHidden ? 'var(--text-secondary)' : '#ffffff';
+      }
+    }
+
+    function setStatusFilter(status) {
+      currentStatusFilter = status;
+      document.querySelectorAll('#status-filter-pills .filter-pill').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      const activeBtn = document.getElementById(`pill-${status}`);
+      if (activeBtn) activeBtn.classList.add('active');
+      applyFilters();
+      updateExportLinks(activeJobId);
+    }
 
     // Batch State
     let activeBatchId = null;
@@ -1369,7 +1395,6 @@
       "Scanning passive OSINT & reverse DNS records (HackerTarget)...",
       "Federating multi-source discovery across 52 Subfinder engines...",
       "Querying rapid DNS historical records (RapidDNS)...",
-      "Harvesting passive OSINT (Subdomain Center, Anubis DB & ThreatMiner)...",
       "Executing high-speed parallel DNS lookups...",
       "Normalizing, verifying, and ranking discovered hosts..."
     ];
@@ -1417,18 +1442,72 @@
       statusText().textContent = message;
     }
 
+    function updateDownloadMenuLabels() {
+      const mode = currentStatusFilter || 'all';
+      const dlText = document.getElementById('btn-download-text');
+      if (dlText) {
+        if (mode === 'live') {
+          dlText.textContent = 'Download Live';
+        } else if (mode === 'dead') {
+          dlText.textContent = 'Download Dead';
+        } else {
+          dlText.textContent = 'Download';
+        }
+      }
+
+      const suffix = mode === 'live' ? ' (Live Only)' : (mode === 'dead' ? ' (Dead Only)' : '');
+      const headerTitle = document.querySelector('#download-dropdown-menu .dropdown-menu-header');
+      if (headerTitle) {
+        headerTitle.textContent = mode !== 'all' ? `EXPORTS (${mode.toUpperCase()} ONLY)` : 'AVAILABLE EXPORTS';
+      }
+
+      const txtTitle = document.querySelector('#link-txt .item-title');
+      if (txtTitle) txtTitle.textContent = `Subdomains List${suffix}`;
+      
+      const csvTitle = document.querySelector('#link-csv .item-title');
+      if (csvTitle) csvTitle.textContent = `CSV Inventory${suffix}`;
+      
+      const jsonTitle = document.querySelector('#link-json .item-title');
+      if (jsonTitle) jsonTitle.textContent = `JSON Dataset${suffix}`;
+
+      const htmlTitle = document.querySelector('#link-html .item-title');
+      if (htmlTitle) htmlTitle.textContent = `HTML Report${suffix}`;
+
+      const ipsTitle = document.querySelector('#link-ips .item-title');
+      if (ipsTitle) ipsTitle.textContent = `Resolved IP List${suffix}`;
+
+      const shodanTitle = document.querySelector('#link-shodan-json .item-title');
+      if (shodanTitle) shodanTitle.textContent = `Shodan JSON Format${suffix}`;
+    }
+
     function updateExportLinks(jobId) {
-      document.getElementById('link-txt').href = `/api/results.txt?job=${jobId}`;
-      document.getElementById('link-csv').href = `/api/results.csv?job=${jobId}`;
-      document.getElementById('link-json').href = `/api/results.json?job=${jobId}`;
+      const id = jobId || activeJobId;
+      updateDownloadMenuLabels();
+      if (!id) return;
+
+      const statusParam = (currentStatusFilter && currentStatusFilter !== 'all') ? `&status=${encodeURIComponent(currentStatusFilter)}` : '';
+      const filterInputEl = document.getElementById('filter-input');
+      const qVal = filterInputEl ? filterInputEl.value.trim() : '';
+      const qParam = qVal ? `&q=${encodeURIComponent(qVal)}` : '';
+      const params = `${statusParam}${qParam}`;
+
+      const linkTxt = document.getElementById('link-txt');
+      if (linkTxt) linkTxt.href = `/api/results.txt?job=${id}${params}`;
+
+      const linkCsv = document.getElementById('link-csv');
+      if (linkCsv) linkCsv.href = `/api/results.csv?job=${id}${params}`;
+
+      const linkJson = document.getElementById('link-json');
+      if (linkJson) linkJson.href = `/api/results.json?job=${id}${params}`;
+
       const linkIps = document.getElementById('link-ips');
-      if (linkIps) {
-        linkIps.href = `/api/results/ips.txt?job=${jobId}`;
-      }
+      if (linkIps) linkIps.href = `/api/results/ips.txt?job=${id}${params}`;
+
       const linkHtml = document.getElementById('link-html');
-      if (linkHtml) {
-        linkHtml.href = `/api/results.html?job=${jobId}`;
-      }
+      if (linkHtml) linkHtml.href = `/api/results.html?job=${id}${params}`;
+
+      const linkShodan = document.getElementById('link-shodan-json');
+      if (linkShodan) linkShodan.href = `/api/results/shodan.json?job=${id}${params}`;
     }
 
     function formatTime(sec) {
@@ -1499,8 +1578,8 @@
       const ids = [
         'source-subfinder', 'source-subfinder_all', 'source-crtsh',
         'source-rapiddns', 'source-hackertarget', 'source-sslmate',
-        'source-amass', 'source-otx', 'source-urlscan',
-        'source-subdomain_center', 'source-anubis', 'source-threatminer'
+        'source-amass', 'source-otx', 'source-urlscan', 'source-subdomain_center',
+        'source-anubis', 'source-threatminer'
       ];
       ids.forEach(id => {
         const el = document.getElementById(id);
@@ -1517,21 +1596,27 @@
       }
 
       const sources = [];
-      if (document.getElementById('source-subfinder') && document.getElementById('source-subfinder').checked) sources.push('subfinder');
-      if (document.getElementById('source-subfinder_all') && document.getElementById('source-subfinder_all').checked) sources.push('subfinder_all');
-      if (document.getElementById('source-crtsh') && document.getElementById('source-crtsh').checked) sources.push('crtsh');
-      if (document.getElementById('source-rapiddns') && document.getElementById('source-rapiddns').checked) sources.push('rapiddns');
+      if (document.getElementById('source-subfinder').checked) sources.push('subfinder');
+      if (document.getElementById('source-subfinder_all').checked) sources.push('subfinder_all');
+      if (document.getElementById('source-crtsh').checked) sources.push('crtsh');
+      if (document.getElementById('source-rapiddns').checked) sources.push('rapiddns');
       if (document.getElementById('source-hackertarget') && document.getElementById('source-hackertarget').checked) sources.push('hackertarget');
-      if (document.getElementById('source-sslmate') && document.getElementById('source-sslmate').checked) sources.push('sslmate');
-      if (document.getElementById('source-amass') && document.getElementById('source-amass').checked) sources.push('amass');
+      if (document.getElementById('source-sslmate').checked) sources.push('sslmate');
+      if (document.getElementById('source-amass').checked) sources.push('amass');
       if (document.getElementById('source-otx') && document.getElementById('source-otx').checked) sources.push('otx');
       if (document.getElementById('source-urlscan') && document.getElementById('source-urlscan').checked) sources.push('urlscan');
       if (document.getElementById('source-subdomain_center') && document.getElementById('source-subdomain_center').checked) sources.push('subdomain_center');
       if (document.getElementById('source-anubis') && document.getElementById('source-anubis').checked) sources.push('anubis');
       if (document.getElementById('source-threatminer') && document.getElementById('source-threatminer').checked) sources.push('threatminer');
 
-      const activeDns = document.getElementById('active-dns').checked;
-      const validateDns = document.getElementById('validate-dns').checked;
+      const wordlistVal = document.getElementById('active-wordlist') ? document.getElementById('active-wordlist').value : '5000';
+      let activeDns = document.getElementById('active-dns') ? document.getElementById('active-dns').checked : false;
+      if (document.getElementById('active-wordlist') && (wordlistVal === '20000' || wordlistVal === '10000')) {
+        const cb = document.getElementById('active-dns');
+        if (cb) cb.checked = true;
+        activeDns = true;
+      }
+      const validateDns = document.getElementById('validate-dns') ? document.getElementById('validate-dns').checked : true;
 
       if (sources.length === 0 && !activeDns) {
         setStatus('error', 'Select at least one discovery source or enable active DNS brute-force.');
@@ -1556,6 +1641,10 @@
       if (counterEl) counterEl.textContent = '0 QUERIES STREAMED';
       const termBody = document.getElementById('terminal-body');
       if (termBody) termBody.innerHTML = '<div class="terminal-line muted-line">[00:00:00] Initializing scan telemetry stream (filtering on Active DNS queries)...</div>';
+
+      // Always auto-open the terminal telemetry console when a scan is launched
+      const termBox = document.getElementById('terminal-box');
+      if (termBox) termBox.classList.remove('hidden');
 
       scanBtn.disabled = true;
       cancelBtn.classList.remove('hidden');
@@ -1810,13 +1899,25 @@
       }
 
       currentResults = data.results || [];
-      renderResults(currentResults);
+      updateStatsAndCounts(currentResults);
+      applyFilters();
+      if (data.id) {
+        activeJobId = data.id;
+      }
+      updateExportLinks(activeJobId);
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     function renderResults(results) {
-      const countEl = document.getElementById('count');
-      countEl.textContent = `${results.length} Subdomain${results.length === 1 ? '' : 's'}`;
-
       const list = document.getElementById('list');
       list.innerHTML = '';
 
@@ -1832,6 +1933,11 @@
       results.forEach((row, idx) => {
         const item = document.createElement('div');
         item.className = 'list-item';
+
+        // Row Header (Visible row)
+        const header = document.createElement('div');
+        header.className = 'subdomain-row-header';
+        header.title = 'Click row to view / collapse intel details';
 
         // Left Column: Index (#001) + Full Subdomain Name + Quick Copy Button
         const subCol = document.createElement('div');
@@ -1874,125 +1980,362 @@
           }, 1200);
         };
         subCol.appendChild(rowCopyBtn);
-        item.appendChild(subCol);
+        header.appendChild(subCol);
 
-        // Right Column: Clean, Compact Metadata (Max 3 Badges: IP, WAF/Origin, Sources)
+        // Right Column: Clean Live or Dead badge + IP (if live) + Chevron
         const metaSpan = document.createElement('div');
         metaSpan.className = 'meta-tags';
 
-        // 1. Live IP Address Badge
-        if (row.dns_ips && row.dns_ips.length > 0) {
-          const ipBadge = document.createElement('span');
-          ipBadge.className = 'badge badge-ip';
-          ipBadge.textContent = row.primary_ip || row.dns_ips[0];
-          ipBadge.title = `Resolved IP(s): ${row.dns_ips.join(', ')}`;
-          metaSpan.appendChild(ipBadge);
+        const isLive = isResultLive(row);
 
-          // 2. Cloud WAF vs Direct Origin Badge
-          const wafBadge = document.createElement('span');
-          if (row.is_cdn || (row.ip_intel && row.ip_intel.is_cdn)) {
-            const btype = (row.ip_intel && row.ip_intel.badge_type) ? row.ip_intel.badge_type : 'cloudflare';
-            wafBadge.className = `badge badge-waf badge-waf-${btype}`;
-            wafBadge.textContent = `${row.waf_provider || 'WAF Protected'}`;
-            wafBadge.title = `Protected by CDN/WAF: ${row.waf_provider || 'Cloudflare / CDN'}`;
-            metaSpan.appendChild(wafBadge);
-          } else if (row.is_origin || row.dns === 'resolved') {
-            wafBadge.className = 'badge badge-origin-ip';
-            const prov = (row.waf_provider && row.waf_provider !== 'Direct Server' && row.waf_provider !== 'None') ? ` (${row.waf_provider})` : '';
-            wafBadge.textContent = `Direct Origin IP${prov}`;
-            wafBadge.title = `Direct Origin Host IP (Potential WAF Bypass Target!): ${row.dns_ips.join(', ')}`;
-            metaSpan.appendChild(wafBadge);
-          }
+        if (isLive) {
+          // 1. Live status badge
+          const liveBadge = document.createElement('span');
+          liveBadge.className = 'badge badge-dns-live';
+          liveBadge.textContent = '🟢 Live';
+          liveBadge.title = row.dns_summary || `Live: Resolved via ${row.dns_resolver || 'Public DNS'}`;
+          metaSpan.appendChild(liveBadge);
 
-          if (row.country_flag) {
-            const geoBadge = document.createElement('span');
-            geoBadge.className = 'badge badge-geo';
-            geoBadge.textContent = `${row.country_flag} ${row.country_code || ''}`.trim();
-            geoBadge.title = `Geographic Location: ${row.country_name || 'Global'} (${row.country_code || ''})`;
-            metaSpan.appendChild(geoBadge);
-          }
+          // 2. Resolved IP badge (if available)
+          const primaryIp = row.primary_ip || (row.dns_ips && row.dns_ips[0]);
+          if (primaryIp) {
+            const ipBadge = document.createElement('span');
+            ipBadge.className = 'badge badge-ip';
+            ipBadge.textContent = primaryIp;
+            ipBadge.title = `Resolved IP: ${primaryIp}`;
+            metaSpan.appendChild(ipBadge);
 
-          if (row.is_confirmed_origin) {
-            const originConfirmedBadge = document.createElement('span');
-            originConfirmedBadge.className = 'badge badge-confirmed-origin';
-            originConfirmedBadge.textContent = '🔥 Confirmed Origin';
-            originConfirmedBadge.title = 'Active WAF Bypass Verified! Host header responded with match to target domain.';
-            metaSpan.appendChild(originConfirmedBadge);
+            // 2.5 Direct Origin vs WAF Provider Badge
+            if (row.is_origin || row.badge_type === 'origin') {
+              const originBadge = document.createElement('span');
+              originBadge.className = 'badge badge-origin-pill';
+              const prov = (row.waf_provider && row.waf_provider !== 'Direct Server' && row.waf_provider !== 'Unknown') ? ` (${row.waf_provider})` : '';
+              originBadge.textContent = `🔥 Direct Origin${prov}`;
+              originBadge.title = 'Direct Origin Server Candidate';
+              metaSpan.appendChild(originBadge);
+            } else if (row.is_cdn || (row.waf_provider && row.waf_provider !== 'Direct Server' && row.waf_provider !== 'Unknown' && row.waf_provider !== 'None')) {
+              const wafBadge = document.createElement('span');
+              wafBadge.className = 'badge badge-waf-pill';
+              wafBadge.textContent = `🛡️ ${row.waf_provider}`;
+              wafBadge.title = `Cloud WAF / CDN Protection: ${row.waf_provider}`;
+              metaSpan.appendChild(wafBadge);
+            } else {
+              const serverBadge = document.createElement('span');
+              serverBadge.className = 'badge badge-server-pill';
+              serverBadge.textContent = 'Direct Server';
+              serverBadge.title = 'Standard Server / Unclassified Host';
+              metaSpan.appendChild(serverBadge);
+            }
           }
-
-          if (row.is_wildcard_catchall) {
-            const wcBadge = document.createElement('span');
-            wcBadge.className = 'badge badge-wildcard';
-            wcBadge.textContent = '⚠️ Wildcard Catchall';
-            wcBadge.title = 'Wildcard DNS catch-all false positive (*.target)';
-            metaSpan.appendChild(wcBadge);
-          }
-        } else if (row.dns && row.dns !== 'not-checked') {
-          const dnsBadge = document.createElement('span');
-          if (row.dns === 'resolved') {
-            dnsBadge.className = 'badge badge-dns-live';
-            const resLabel = row.dns_resolver ? row.dns_resolver.split(' ')[0] : 'Live';
-            dnsBadge.textContent = `Live (${resLabel})`;
-            dnsBadge.title = row.dns_summary || `Resolved via ${row.dns_resolver || 'Public DNS'}`;
+        } else {
+          // Dead domain status badge
+          const deadBadge = document.createElement('span');
+          deadBadge.className = 'badge badge-dns-dead';
+          if (row.is_wildcard_catchall || row.dns === 'wildcard-catchall') {
+            deadBadge.textContent = '🔴 Dead (Wildcard Catch-all)';
+            deadBadge.title = 'Dead: Resolves only to domain catch-all baseline IP. Non-existent host.';
           } else {
-            dnsBadge.className = 'badge badge-dns-dead';
-            dnsBadge.textContent = 'Dead';
-            dnsBadge.title = row.dns_summary || 'Dead: Confirmed unresolved across all configured resolvers';
+            deadBadge.textContent = '🔴 Dead (NXDOMAIN)';
+            deadBadge.title = row.dns_summary || 'Dead: Confirmed unresolved across configured resolvers';
           }
-          metaSpan.appendChild(dnsBadge);
+          metaSpan.appendChild(deadBadge);
         }
 
-        // 3. Compact Sources Pill (Eliminates visual noise of 7 separate tags into 1 clean pill)
+        // 3. Chevron toggle arrow
+        const chevron = document.createElement('span');
+        chevron.className = 'row-chevron';
+        chevron.innerHTML = '▾';
+        chevron.title = 'Click to toggle details';
+        metaSpan.appendChild(chevron);
+
+        header.appendChild(metaSpan);
+
+        // Header click listener toggles details drawer
+        header.addEventListener('click', (e) => {
+          if (e.target.closest('.row-copy-btn') || e.target.closest('.subdomain-name')) return;
+          item.classList.toggle('expanded');
+        });
+
+        item.appendChild(header);
+
+        // Expandable Details Drawer (Revealed on click)
+        const drawer = document.createElement('div');
+        drawer.className = 'subdomain-details-drawer';
+        drawer.addEventListener('click', (e) => e.stopPropagation());
+
+        let drawerHtml = '';
+
+        // Banner: Confirmed Origin / WAF Bypass
+        if (row.is_confirmed_origin) {
+          drawerHtml += `
+            <div class="drawer-banner drawer-banner-origin">
+              <span>🔥</span>
+              <div>
+                <strong>Confirmed True Origin Server (Active WAF Bypass Verified!)</strong>
+                <div style="font-size:11px; opacity:0.9;">Target origin server confirmed via direct Host-header probing. Direct IP: ${escapeHtml(row.primary_ip || (row.dns_ips && row.dns_ips[0]) || '')}</div>
+              </div>
+            </div>`;
+        }
+
+        // Banner: Wildcard Catchall
+        if (row.is_wildcard_catchall) {
+          drawerHtml += `
+            <div class="drawer-banner drawer-banner-wildcard">
+              <span>⚠️</span>
+              <div>
+                <strong>Wildcard Catch-all Host</strong>
+                <div style="font-size:11px; opacity:0.9;">Resolves to the wildcard baseline address. Likely a catchall false positive.</div>
+              </div>
+            </div>`;
+        }
+
+        drawerHtml += '<div class="drawer-grid">';
+
+        // 1. Resolved IP(s) Card
+        const ips = (row.dns_ips && row.dns_ips.length > 0) ? row.dns_ips : (row.primary_ip ? [row.primary_ip] : []);
+        let ipsHtml = ips.length ? ips.map(ip => `<span class="badge badge-ip">${escapeHtml(ip)}</span>`).join(' ') : '<span style="color:var(--muted); font-size:12px;">None / Unresolved</span>';
+        drawerHtml += `
+          <div class="drawer-card">
+            <span class="drawer-card-label">Resolved IP(s)</span>
+            <div class="drawer-card-content mono">${ipsHtml}</div>
+          </div>`;
+
+        // 2. Protection / Infrastructure Card
+        let infraText = row.waf_provider || 'Direct Server';
+        let infraBadgeClass = 'badge badge-origin-ip';
+        let infraSub = 'Direct Host';
+
+        if (!isLive) {
+          infraBadgeClass = 'badge badge-dns-dead';
+          infraText = '🔴 Dead / Inactive Host';
+          infraSub = 'No DNS A/CNAME records exist';
+        } else if (row.is_cdn || (row.ip_intel && row.ip_intel.is_cdn)) {
+          const btype = (row.ip_intel && row.ip_intel.badge_type) ? row.ip_intel.badge_type : 'cloudflare';
+          infraBadgeClass = `badge badge-waf badge-waf-${btype}`;
+          infraText = `${row.waf_provider || 'WAF Protected'} (Cloud Proxy)`;
+          infraSub = 'Reverse Proxy / Edge';
+        } else if (row.waf_provider && row.waf_provider !== 'None' && row.waf_provider !== 'Direct Server') {
+          infraText = `Direct Server (${row.waf_provider})`;
+          infraSub = 'Direct Host';
+        }
+        drawerHtml += `
+          <div class="drawer-card">
+            <span class="drawer-card-label">Protection / Infrastructure</span>
+            <div class="drawer-card-content">
+              <span class="${infraBadgeClass}">${escapeHtml(infraText)}</span>
+              <span style="font-size:11px; color:var(--muted);">${escapeHtml(infraSub)}</span>
+            </div>
+          </div>`;
+
+        // 3. Geographic Location Card
+        const geoFlag = row.country_flag || '🌐';
+        const geoCountry = row.country_name || 'Global';
+        const geoCode = row.country_code ? `(${row.country_code})` : '';
+        drawerHtml += `
+          <div class="drawer-card">
+            <span class="drawer-card-label">Geographic Location</span>
+            <div class="drawer-card-content">
+              <span class="badge badge-geo">${geoFlag} ${escapeHtml(geoCountry)} ${escapeHtml(geoCode)}</span>
+            </div>
+          </div>`;
+
+        // 4. Canonical Name (CNAME) Card
+        const cnameVal = row.cname ? `<span class="badge badge-cname">${escapeHtml(row.cname)}</span>` : '<span style="color:var(--muted); font-size:11.5px;">None (Direct A Record)</span>';
+        drawerHtml += `
+          <div class="drawer-card">
+            <span class="drawer-card-label">Canonical Name (CNAME)</span>
+            <div class="drawer-card-content mono">${cnameVal}</div>
+          </div>`;
+
+        // 5. DNS Resolution & Resolver Card
+        let dnsStatusBadge = '';
+        if (row.dns === 'resolved') {
+          dnsStatusBadge = '<span class="badge badge-dns-live">🟢 Live</span>';
+        } else if (row.dns === 'unresolved') {
+          dnsStatusBadge = '<span class="badge badge-dns-dead">🔴 Dead</span>';
+        } else {
+          dnsStatusBadge = '<span class="badge badge-dns-dead">⚪ Not Checked</span>';
+        }
+        const resolverInfo = row.dns_resolver ? `<span style="font-size:11px; color:var(--muted);">via ${escapeHtml(row.dns_resolver)}</span>` : '';
+        drawerHtml += `
+          <div class="drawer-card">
+            <span class="drawer-card-label">DNS Status & Resolver</span>
+            <div class="drawer-card-content">${dnsStatusBadge} ${resolverInfo}</div>
+          </div>`;
+
+        // 6. Discovery Sources & Confidence Card
         const sources = row.sources || [];
-        if (sources.length > 0) {
-          const srcBadge = document.createElement('span');
-          srcBadge.className = 'badge badge-src badge-sources-pill';
-          const confStar = (row.confidence === 'high') ? '• ' : '';
-          if (sources.length === 1) {
-            srcBadge.textContent = `${confStar}${sources[0]}`;
-          } else {
-            srcBadge.textContent = `${confStar}${sources[0]} +${sources.length - 1}`;
-          }
-          srcBadge.title = `Discovered by ${sources.length} sources: ${sources.join(', ')}${row.confidence === 'high' ? ' (High Confidence)' : ''}`;
-          metaSpan.appendChild(srcBadge);
+        let sourcesBadges = sources.map(s => `<span class="badge badge-src" style="font-size:10.5px;">${escapeHtml(s)}</span>`).join(' ');
+        const confBadge = row.confidence === 'high' ? '<span class="badge badge-confidence">⭐ High Confidence</span>' : '<span class="badge badge-confidence">Single Source</span>';
+        drawerHtml += `
+          <div class="drawer-card">
+            <span class="drawer-card-label">Discovery Sources (${sources.length}) & Confidence</span>
+            <div class="drawer-card-content drawer-sources-wrap">${sourcesBadges || '—'} ${confBadge}</div>
+          </div>`;
+
+        drawerHtml += '</div>'; // end drawer-grid
+
+        // Actions Bar
+        const fullIntelObj = {
+          subdomain: row.subdomain,
+          ips: ips,
+          waf_provider: row.waf_provider || (row.is_cdn ? 'CDN' : 'Direct Server'),
+          is_cdn: Boolean(row.is_cdn),
+          is_origin: Boolean(row.is_origin),
+          is_confirmed_origin: Boolean(row.is_confirmed_origin),
+          location: `${geoCountry} ${geoCode}`.trim(),
+          cname: row.cname || null,
+          dns_status: row.dns || 'not-checked',
+          dns_resolver: row.dns_resolver || null,
+          sources: sources
+        };
+        const intelJsonEscaped = escapeHtml(JSON.stringify(fullIntelObj, null, 2));
+
+        drawerHtml += `
+          <div class="drawer-actions-bar">
+            <div class="drawer-actions-left">
+              <a href="https://${escapeHtml(row.subdomain)}" target="_blank" rel="noopener noreferrer" class="drawer-btn">
+                <span>HTTPS ↗</span>
+              </a>
+              <a href="http://${escapeHtml(row.subdomain)}" target="_blank" rel="noopener noreferrer" class="drawer-btn">
+                <span>HTTP ↗</span>
+              </a>
+              <button type="button" class="drawer-btn drawer-copy-intel-btn" data-intel='${intelJsonEscaped.replace(/'/g, "&#39;")}'>
+                <span>Copy Intel JSON</span>
+              </button>
+            </div>
+            <div style="font-size:10.5px; color:var(--muted); font-family:var(--font-mono);">
+              ${escapeHtml(row.subdomain)}
+            </div>
+          </div>
+        `;
+
+        drawer.innerHTML = drawerHtml;
+
+        // Wire Copy Intel JSON button
+        const copyIntelBtn = drawer.querySelector('.drawer-copy-intel-btn');
+        if (copyIntelBtn) {
+          copyIntelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const raw = copyIntelBtn.getAttribute('data-intel');
+            navigator.clipboard.writeText(raw);
+            const orig = copyIntelBtn.innerHTML;
+            copyIntelBtn.innerHTML = '<span>✓ Copied Intel</span>';
+            copyIntelBtn.classList.add('copied');
+            setTimeout(() => {
+              copyIntelBtn.innerHTML = orig;
+              copyIntelBtn.classList.remove('copied');
+            }, 1200);
+          });
         }
 
-        item.appendChild(metaSpan);
+        item.appendChild(drawer);
         fragment.appendChild(item);
       });
 
       list.appendChild(fragment);
     }
 
-    function filterResults() {
-      const q = filterInput.value.trim().toLowerCase();
-      if (!q) {
-        clearFilter();
-        renderResults(currentResults);
-        return;
+    function isResultLive(r) {
+      if (r.is_wildcard_catchall || r.dns === 'wildcard-catchall' || r.is_dead === true) {
+        return false;
       }
-      filterClearBtn.classList.remove('hidden');
-      const filtered = currentResults.filter(r => {
-        return (r.subdomain && r.subdomain.toLowerCase().includes(q)) ||
-               (r.primary_ip && r.primary_ip.toLowerCase().includes(q)) ||
-               (r.waf_provider && r.waf_provider.toLowerCase().includes(q)) ||
-               (r.is_main_domain && 'main domain'.includes(q));
+      if (r.is_live === true) {
+        return true;
+      }
+      if (r.dns === 'unresolved' || r.dns === 'nxdomain') {
+        return false;
+      }
+      return Boolean((r.dns_ips && r.dns_ips.length > 0) || r.primary_ip || r.dns === 'resolved');
+    }
+
+    function isResultDead(r) {
+      return !isResultLive(r);
+    }
+
+    function updateStatsAndCounts(results) {
+      const total = results.length;
+      let liveCount = 0;
+      let deadCount = 0;
+
+      results.forEach(r => {
+        if (isResultLive(r)) liveCount++;
+        else deadCount++;
       });
-      filterCounter.classList.remove('hidden');
-      filterCounter.textContent = `Showing ${filtered.length} of ${currentResults.length}`;
+
+      // Update Main Heading: clear breakdown of total, live, and dead
+      const countEl = document.getElementById('count');
+      if (countEl) {
+        countEl.textContent = `${total} Discovered Subdomains (${liveCount} Live, ${deadCount} Dead)`;
+      }
+
+      // Update Pill Count Badges
+      const countAll = document.getElementById('pill-count-all');
+      if (countAll) countAll.textContent = total;
+      const countLive = document.getElementById('pill-count-live');
+      if (countLive) countLive.textContent = liveCount;
+      const countDead = document.getElementById('pill-count-dead');
+      if (countDead) countDead.textContent = deadCount;
+    }
+
+    function applyFilters() {
+      const q = filterInput.value.trim().toLowerCase();
+      let filtered = currentResults;
+
+      // 1. Status Filter: all, live, dead
+      if (currentStatusFilter === 'live') {
+        filtered = filtered.filter(r => isResultLive(r));
+      } else if (currentStatusFilter === 'dead') {
+        filtered = filtered.filter(r => isResultDead(r));
+      }
+
+      // 2. Query Search Filter
+      if (q) {
+        filterClearBtn.classList.remove('hidden');
+        filtered = filtered.filter(r => {
+          return (r.subdomain && r.subdomain.toLowerCase().includes(q)) ||
+                 (r.primary_ip && r.primary_ip.toLowerCase().includes(q)) ||
+                 (r.waf_provider && r.waf_provider.toLowerCase().includes(q)) ||
+                 (r.is_main_domain && 'main domain'.includes(q));
+        });
+        filterCounter.classList.remove('hidden');
+        filterCounter.textContent = `Showing ${filtered.length} of ${currentResults.length}`;
+      } else {
+        filterClearBtn.classList.add('hidden');
+        if (currentStatusFilter !== 'all') {
+          filterCounter.classList.remove('hidden');
+          filterCounter.textContent = `Showing ${filtered.length} of ${currentResults.length}`;
+        } else {
+          filterCounter.classList.add('hidden');
+        }
+      }
+
       renderResults(filtered);
+      updateExportLinks(activeJobId);
+    }
+
+    function filterResults() {
+      applyFilters();
     }
 
     function clearFilter() {
       filterInput.value = '';
       filterClearBtn.classList.add('hidden');
       filterCounter.classList.add('hidden');
-      renderResults(currentResults);
+      applyFilters();
     }
 
     async function copyAll() {
       const q = filterInput.value.trim().toLowerCase();
-      const listToCopy = q ? currentResults.filter(r => r.subdomain.toLowerCase().includes(q)) : currentResults;
+      let listToCopy = currentResults;
+      if (currentStatusFilter === 'live') {
+        listToCopy = listToCopy.filter(r => isResultLive(r));
+      } else if (currentStatusFilter === 'dead') {
+        listToCopy = listToCopy.filter(r => isResultDead(r));
+      }
+      if (q) {
+        listToCopy = listToCopy.filter(r => r.subdomain && r.subdomain.toLowerCase().includes(q));
+      }
       const text = listToCopy.map(r => r.subdomain).join('\n');
       if (!text) {
         setStatus('idle', 'Nothing to copy.');
@@ -2002,7 +2345,8 @@
         await navigator.clipboard.writeText(text);
         const copyBtn = document.getElementById('copy-btn');
         const orig = copyBtn.textContent;
-        copyBtn.textContent = 'Copied!';
+        const tag = currentStatusFilter !== 'all' ? ` ${currentStatusFilter}` : '';
+        copyBtn.textContent = `Copied (${listToCopy.length}${tag})!`;
         copyBtn.classList.add('copied');
         setTimeout(() => {
           copyBtn.textContent = orig;
@@ -2014,15 +2358,21 @@
     }
 
     async function copyDiscoveredIPs() {
+      let sourceList = currentResults;
+      if (currentStatusFilter === 'live') {
+        sourceList = sourceList.filter(r => isResultLive(r));
+      } else if (currentStatusFilter === 'dead') {
+        sourceList = sourceList.filter(r => isResultDead(r));
+      }
       const allIps = new Set();
-      currentResults.forEach(r => {
+      sourceList.forEach(r => {
         (r.dns_ips || []).forEach(ip => {
           if (ip && ip.trim()) allIps.add(ip.trim());
         });
       });
       const ipsList = Array.from(allIps);
       if (ipsList.length === 0) {
-        setStatus('idle', 'No resolved IPs found to copy. Make sure Live DNS Check is enabled.');
+        setStatus('idle', 'No resolved IPs found to copy for the current selection.');
         return;
       }
       try {
@@ -2041,6 +2391,148 @@
         console.error('Clipboard copy failed:', err);
       }
     }
+
+    function getFilteredExportResults() {
+      let filtered = currentResults;
+      if (currentStatusFilter === 'live') {
+        filtered = filtered.filter(r => isResultLive(r));
+      } else if (currentStatusFilter === 'dead') {
+        filtered = filtered.filter(r => isResultDead(r));
+      }
+      const q = filterInput ? filterInput.value.trim().toLowerCase() : '';
+      if (q) {
+        filtered = filtered.filter(r => {
+          return (r.subdomain && r.subdomain.toLowerCase().includes(q)) ||
+                 (r.primary_ip && r.primary_ip.toLowerCase().includes(q)) ||
+                 (r.waf_provider && r.waf_provider.toLowerCase().includes(q));
+        });
+      }
+      return filtered;
+    }
+
+    function triggerDownloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function downloadClientSideFallback(linkId) {
+      const filtered = getFilteredExportResults();
+      const domainInput = document.getElementById('target');
+      const targetDomain = (domainInput && domainInput.value.trim()) || 'scan';
+      const suffix = (currentStatusFilter && currentStatusFilter !== 'all') ? `_${currentStatusFilter}` : '';
+
+      if (linkId === 'link-txt') {
+        const filterLabel = currentStatusFilter !== 'all' ? ` (${currentStatusFilter.toUpperCase()})` : '';
+        const header = `# SubZero • Developed by Gulam Khan\n# Target: ${targetDomain} • Total Found${filterLabel}: ${filtered.length}\n\n`;
+        const body = header + filtered.map(r => r.subdomain).join('\n') + '\n';
+        const blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
+        triggerDownloadBlob(blob, `${targetDomain}${suffix}_subdomains.txt`);
+      } else if (linkId === 'link-csv') {
+        const headers = ['subdomain', 'sources', 'confidence', 'dns', 'primary_ip', 'waf_provider', 'is_origin', 'dns_resolver', 'dns_ips'];
+        const filterNote = currentStatusFilter !== 'all' ? ` [Filter: ${currentStatusFilter.toUpperCase()}]` : '';
+        const rows = [
+          `"# SubZero","Developed by Gulam Khan","Target: ${targetDomain}${filterNote}"`,
+          headers.join(',')
+        ];
+        filtered.forEach(r => {
+          rows.push([
+            r.subdomain || '',
+            `"${(r.sources || []).join(', ')}"`,
+            r.confidence || '',
+            r.dns || '',
+            r.primary_ip || '',
+            `"${r.waf_provider || ''}"`,
+            r.is_origin ? 'YES' : 'NO',
+            r.dns_resolver || '',
+            `"${(r.dns_ips || []).join(', ')}"`
+          ].join(','));
+        });
+        const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+        triggerDownloadBlob(blob, `${targetDomain}${suffix}_subdomains.csv`);
+      } else if (linkId === 'link-json') {
+        const payload = {
+          domain: targetDomain,
+          status_filter: currentStatusFilter,
+          total_subdomains: filtered.length,
+          results: filtered
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+        triggerDownloadBlob(blob, `${targetDomain}${suffix}_subdomains.json`);
+      } else if (linkId === 'link-ips') {
+        const allIps = new Set();
+        filtered.forEach(r => {
+          (r.dns_ips || []).forEach(ip => { if (ip && ip.trim()) allIps.add(ip.trim()); });
+        });
+        const sortedIps = Array.from(allIps).sort();
+        const filterLabel = currentStatusFilter !== 'all' ? ` (${currentStatusFilter.toUpperCase()})` : '';
+        const header = `# SubZero • Developed by Gulam Khan\n# Target: ${targetDomain} • Unique Resolved IPs${filterLabel}: ${sortedIps.length}\n\n`;
+        const body = header + sortedIps.join('\n') + '\n';
+        const blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
+        triggerDownloadBlob(blob, `${targetDomain}${suffix}_unique_ips.txt`);
+      }
+    }
+
+    /* ==========================================================================
+       UNIFIED DOWNLOAD DROPDOWN MENU
+       ========================================================================== */
+    function toggleDownloadDropdown(e) {
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      const wrapper = document.getElementById('download-dropdown-wrapper');
+      const menu = document.getElementById('download-dropdown-menu');
+      if (!wrapper || !menu) return;
+      const isHidden = menu.classList.contains('hidden');
+      if (isHidden) {
+        updateExportLinks(activeJobId);
+        menu.classList.remove('hidden');
+        wrapper.classList.add('open');
+      } else {
+        menu.classList.add('hidden');
+        wrapper.classList.remove('open');
+      }
+    }
+
+    // Close download dropdown on outside click or item click
+    document.addEventListener('click', (e) => {
+      const wrapper = document.getElementById('download-dropdown-wrapper');
+      const menu = document.getElementById('download-dropdown-menu');
+      if (wrapper && menu && !wrapper.contains(e.target)) {
+        menu.classList.add('hidden');
+        wrapper.classList.remove('open');
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const menu = document.getElementById('download-dropdown-menu');
+      if (menu) {
+        menu.querySelectorAll('a').forEach(a => {
+          a.addEventListener('click', (e) => {
+            const wrapper = document.getElementById('download-dropdown-wrapper');
+            menu.classList.add('hidden');
+            if (wrapper) wrapper.classList.remove('open');
+
+            if (!activeJobId) {
+              if (currentResults.length === 0) {
+                e.preventDefault();
+                alert('No subdomains available to export yet. Run a scan first.');
+                return;
+              }
+              // If we have results in memory but no activeJobId, use client-side download fallback
+              e.preventDefault();
+              downloadClientSideFallback(a.id);
+            }
+          });
+        });
+      }
+    });
 
     /* ==========================================================================
        TERMINAL LOGGING ENGINE
@@ -3545,214 +4037,6 @@
     }
 
     /* ==========================================================================
-       VIEW 7: HISTORICAL ARCHIVE & WAYBACK URL MINER CONTROLLERS
-       ========================================================================== */
-    let currentArchiveData = null;
-    let currentArchiveCategory = 'sensitive';
-
-    function sendDomainToArchiveMiner() {
-      const domain = document.getElementById('domain').value.trim();
-      if (domain) {
-        document.getElementById('archive-domain-input').value = domain;
-      }
-      switchPlatformTab('archive');
-    }
-
-    async function startArchiveMining() {
-      const domain = document.getElementById('archive-domain-input').value.trim();
-      if (!domain) {
-        alert('Please enter a target domain (e.g. example.com).');
-        return;
-      }
-
-      const btn = document.getElementById('archive-mine-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span>⏳ Mining Wayback & AlienVault Archives...</span>';
-
-      try {
-        const res = await fetch('/api/archive/mine', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ domain: domain, limit: 2500 })
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-
-        currentArchiveData = data;
-        document.getElementById('archive-results-box').classList.remove('hidden');
-        document.getElementById('archive-metric-total').textContent = data.total_urls;
-        document.getElementById('archive-metric-subs').textContent = data.total_subdomains;
-        document.getElementById('archive-metric-sensitive').textContent = data.sensitive_files_count;
-        document.getElementById('archive-metric-params').textContent = data.parameter_urls_count;
-
-        document.getElementById('count-cat-sensitive').textContent = data.sensitive_files_count;
-        document.getElementById('count-cat-params').textContent = data.parameter_urls_count;
-        document.getElementById('count-cat-subs').textContent = data.total_subdomains;
-        document.getElementById('count-cat-api').textContent = data.api_endpoints_count;
-
-        switchArchiveCategory('sensitive');
-      } catch (err) {
-        alert('Archive Mining Error: ' + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<span>Mine Historical Archives</span>';
-      }
-    }
-
-    function switchArchiveCategory(cat) {
-      currentArchiveCategory = cat;
-      ['sensitive', 'params', 'subs', 'api', 'all'].forEach(c => {
-        const tab = document.getElementById(`tab-archive-${c}`);
-        if (tab) tab.classList.toggle('active', c === cat);
-      });
-
-      renderArchiveTable();
-    }
-
-    function renderArchiveTable(filterQuery = '') {
-      if (!currentArchiveData) return;
-      const thead = document.getElementById('archive-thead');
-      const tbody = document.getElementById('archive-tbody');
-      tbody.innerHTML = '';
-      const q = (filterQuery || '').toLowerCase();
-
-      if (currentArchiveCategory === 'sensitive') {
-        thead.innerHTML = '<tr><th>Sensitive URL / Leak Path</th><th>Host</th><th>File / Extension</th><th>Category</th><th>Action</th></tr>';
-        let items = currentArchiveData.sensitive_files || [];
-        if (q) items = items.filter(i => i.url.toLowerCase().includes(q) || i.path.toLowerCase().includes(q));
-        if (items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:24px;">No sensitive files detected in archives.</td></tr>';
-          return;
-        }
-        const frag = document.createDocumentFragment();
-        items.forEach(item => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td style="max-width:360px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><strong style="font-family:var(--font-mono); font-size:12.5px; color:#ff8591;">${item.url}</strong></td>
-            <td><span style="font-family:var(--font-mono); font-size:12px;">${item.host}</span></td>
-            <td><span class="badge badge-dns-dead" style="font-size:11px;">${item.path}</span></td>
-            <td><span class="badge badge-crtsh">${item.category}</span></td>
-            <td><a href="${item.url}" target="_blank" rel="noopener noreferrer" class="action-btn" style="font-size:11px; padding:2px 7px;">Open ↗</a></td>
-          `;
-          frag.appendChild(tr);
-        });
-        tbody.appendChild(frag);
-      } else if (currentArchiveCategory === 'params') {
-        thead.innerHTML = '<tr><th>URL with Query Parameters</th><th>Host</th><th>Interesting Parameters</th><th>Action</th></tr>';
-        let items = currentArchiveData.parameter_urls || [];
-        if (q) items = items.filter(i => i.url.toLowerCase().includes(q));
-        if (items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--muted); padding:24px;">No parameter URLs detected in archives.</td></tr>';
-          return;
-        }
-        const frag = document.createDocumentFragment();
-        items.forEach(item => {
-          const tr = document.createElement('tr');
-          const paramBadges = item.params.map(p => `<span class="badge badge-active">${p}</span>`).join(' ');
-          tr.innerHTML = `
-            <td style="max-width:380px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><span style="font-family:var(--font-mono); font-size:12.5px; color:#fbbf24;">${item.url}</span></td>
-            <td><span style="font-family:var(--font-mono); font-size:12px;">${item.host}</span></td>
-            <td>${paramBadges}</td>
-            <td><a href="${item.url}" target="_blank" rel="noopener noreferrer" class="action-btn" style="font-size:11px; padding:2px 7px;">Open ↗</a></td>
-          `;
-          frag.appendChild(tr);
-        });
-        tbody.appendChild(frag);
-      } else if (currentArchiveCategory === 'subs') {
-        thead.innerHTML = '<tr><th>Historical Subdomain</th><th>Root Domain</th><th>Action</th></tr>';
-        let items = currentArchiveData.historical_subdomains || [];
-        if (q) items = items.filter(s => s.toLowerCase().includes(q));
-        if (items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--muted); padding:24px;">No historical subdomains found.</td></tr>';
-          return;
-        }
-        const frag = document.createDocumentFragment();
-        items.forEach(sub => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td><strong style="font-family:var(--font-mono); font-size:13px; color:#ffffff;">${sub}</strong></td>
-            <td><span class="badge badge-src">${currentArchiveData.domain}</span></td>
-            <td><button type="button" class="term-btn" onclick="navigator.clipboard.writeText('${sub}')">Copy</button></td>
-          `;
-          frag.appendChild(tr);
-        });
-        tbody.appendChild(frag);
-      } else if (currentArchiveCategory === 'api') {
-        thead.innerHTML = '<tr><th>API Route / Endpoint</th><th>Action</th></tr>';
-        let items = currentArchiveData.api_endpoints || [];
-        if (q) items = items.filter(u => u.toLowerCase().includes(q));
-        if (items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:var(--muted); padding:24px;">No API endpoints found.</td></tr>';
-          return;
-        }
-        const frag = document.createDocumentFragment();
-        items.forEach(u => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td style="max-width:520px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><span style="font-family:var(--font-mono); font-size:12.5px; color:#38bdf8;">${u}</span></td>
-            <td><a href="${u}" target="_blank" rel="noopener noreferrer" class="action-btn" style="font-size:11px; padding:2px 7px;">Open ↗</a></td>
-          `;
-          frag.appendChild(tr);
-        });
-        tbody.appendChild(frag);
-      } else {
-        // All URLs
-        thead.innerHTML = '<tr><th>Archived URL</th><th>Action</th></tr>';
-        let items = currentArchiveData.sample_urls || [];
-        if (q) items = items.filter(u => u.toLowerCase().includes(q));
-        const frag = document.createDocumentFragment();
-        items.forEach(u => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td style="max-width:550px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><span style="font-family:var(--font-mono); font-size:12.5px; color:#cbd5e1;">${u}</span></td>
-            <td><a href="${u}" target="_blank" rel="noopener noreferrer" class="action-btn" style="font-size:11px; padding:2px 7px;">Open ↗</a></td>
-          `;
-          frag.appendChild(tr);
-        });
-        tbody.appendChild(frag);
-      }
-    }
-
-    function filterArchiveResults() {
-      const q = document.getElementById('archive-filter-input').value.trim();
-      renderArchiveTable(q);
-    }
-
-    async function copyCurrentArchiveCategory() {
-      if (!currentArchiveData) return;
-      let items = [];
-      if (currentArchiveCategory === 'sensitive') {
-        items = (currentArchiveData.sensitive_files || []).map(i => i.url);
-      } else if (currentArchiveCategory === 'params') {
-        items = (currentArchiveData.parameter_urls || []).map(i => i.url);
-      } else if (currentArchiveCategory === 'subs') {
-        items = currentArchiveData.historical_subdomains || [];
-      } else if (currentArchiveCategory === 'api') {
-        items = currentArchiveData.api_endpoints || [];
-      } else {
-        items = currentArchiveData.sample_urls || [];
-      }
-      if (items.length === 0) {
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(items.join('\n'));
-        const btn = document.querySelector('button[onclick="copyCurrentArchiveCategory()"]');
-        if (btn) {
-          const oldTxt = btn.textContent;
-          btn.textContent = `✓ Copied (${items.length})`;
-          btn.classList.add('copied-flash');
-          setTimeout(() => {
-            btn.textContent = oldTxt;
-            btn.classList.remove('copied-flash');
-          }, 1800);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    /* ==========================================================================
        DIFF COMPARISON MODAL CONTROLLER
        ========================================================================== */
     async function openDiffModal() {
@@ -3888,6 +4172,37 @@
         rafActive = false;
       });
     }, { passive: true });
+
+    function onActiveWordlistChange(val) {
+      const singleDnsCb = document.getElementById('active-dns');
+      if (singleDnsCb) {
+        singleDnsCb.checked = true;
+        const chip = singleDnsCb.closest('.engine-chip') || document.getElementById('active-dns-group');
+        if (chip) chip.classList.add('active');
+      }
+    }
+
+    function onBatchActiveWordlistChange(val) {
+      const batchDnsCb = document.getElementById('batch-active-dns');
+      if (batchDnsCb) {
+        batchDnsCb.checked = true;
+        const chip = batchDnsCb.closest('.engine-chip') || document.getElementById('batch-active-dns-group');
+        if (chip) chip.classList.add('active');
+      }
+    }
+
+    // Auto-check Active DNS when a wordlist is selected or changed
+    document.addEventListener('DOMContentLoaded', () => {
+      const singleWordlist = document.getElementById('active-wordlist');
+      if (singleWordlist) {
+        singleWordlist.addEventListener('change', () => onActiveWordlistChange(singleWordlist.value));
+      }
+
+      const batchWordlist = document.getElementById('batch-active-wordlist');
+      if (batchWordlist) {
+        batchWordlist.addEventListener('change', () => onBatchActiveWordlistChange(batchWordlist.value));
+      }
+    });
   </script>
 </body>
 </html>

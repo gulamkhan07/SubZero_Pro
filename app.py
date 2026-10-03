@@ -45,6 +45,7 @@ from enumerator.shodan_free import harvest_shodan_internetdb
 from enumerator.nested_engine import discover_nested_subdomains, extract_subzones, mine_nested_patterns
 
 app = Flask(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 @app.after_request
 def add_no_cache_headers(response):
@@ -81,7 +82,13 @@ def _cleanup_old_jobs():
             for k in expired_keys:
                 del CACHE[k]
 
-threading.Thread(target=_cleanup_old_jobs, daemon=True, name='job-cleanup').start()
+_cleanup_thread_started = False
+
+def _ensure_cleanup_thread():
+    global _cleanup_thread_started
+    if not _cleanup_thread_started:
+        _cleanup_thread_started = True
+        threading.Thread(target=_cleanup_old_jobs, daemon=True, name='job-cleanup').start()
 
 
 def _shutdown_executors():
@@ -154,14 +161,24 @@ def _enrich_subdomain_record(item: Dict[str, Any], dns_res: Dict[str, Any], wc_i
     ips = dns_res.get('ips', [])
     cname = dns_res.get('cname', '')
     item['dns_ips'] = ips
-    item['cname'] = cname
-    item['is_wildcard_catchall'] = is_wildcard_false_positive(ips, cname, wc_info)
+    is_catchall = is_wildcard_false_positive(ips, cname, wc_info)
+    item['is_wildcard_catchall'] = is_catchall
+    if is_catchall:
+        item['dns'] = 'wildcard-catchall'
+        item['is_dead'] = True
+        item['is_live'] = False
+    elif item['dns'] == 'resolved':
+        item['is_dead'] = False
+        item['is_live'] = True
+    else:
+        item['is_dead'] = True
+        item['is_live'] = False
     if ips or cname:
         intel = classify_ips(ips, cname=cname)
         item['ip_intel'] = intel
         item['primary_ip'] = intel.get('primary_ip', '')
         item['waf_provider'] = intel.get('waf_provider', 'Direct Server')
-        item['is_origin'] = intel.get('is_origin', True)
+        item['is_origin'] = intel.get('is_origin', False)
         item['is_cdn'] = intel.get('is_cdn', False)
         item['country_name'] = intel.get('country_name', 'Global')
         item['country_code'] = intel.get('country_code', '')
@@ -179,6 +196,7 @@ def _resolve_and_enrich_hosts(
 ) -> None:
     """Concurrently resolves newly discovered hosts (e.g. from TLS-SAN or PTR sweeps) and enriches results."""
     _add_log(job, f"[{source_tag.upper()}] Verifying DNS resolution for {len(hosts)} new host(s)...")
+    new_items = []
     with ThreadPoolExecutor(max_workers=min(40, max(1, len(hosts)))) as pool:
         futures = {pool.submit(check_domain_multi_resolver, s, selected_res): s for s in hosts}
         for future in as_completed(futures):
@@ -195,7 +213,8 @@ def _resolve_and_enrich_hosts(
                 _enrich_subdomain_record(item, dns_res, wc_info)
             except Exception:
                 item['dns'] = 'not-checked'
-            results.append(item)
+            new_items.append(item)
+    results.extend(new_items)
 
 
 def _run_scan(job_id, selected):
@@ -211,63 +230,11 @@ def _run_scan(job_id, selected):
     _add_log(job, f"[*] Starting reconnaissance job for: {job['domain']}")
     _add_log(job, f"[*] Selected engines: {', '.join(selected + (['active-dns'] if active_dns else []))}")
 
-    def _execute_provider(name):
-        _add_log(job, f"[{name}] Starting query worker...")
-        t0 = time.time()
-        try:
-            values, err, cnt = PROVIDERS[name](job['domain'])
-            dur = round(time.time() - t0, 2)
-            if err:
-                _add_log(job, f"[{name}] Finished ({dur}s) with notice: {err} | Found {cnt}")
-            else:
-                _add_log(job, f"[{name}] Finished successfully ({dur}s) | Found {cnt} subdomains")
-            for val in values[:25]:
-                _add_log(job, f"[{name}] Discovered -> {val}")
-            if len(values) > 25:
-                _add_log(job, f"[{name}] ... and {len(values) - 25} more subdomains")
-            return values, err, cnt
-        except Exception as exc:
-            dur = round(time.time() - t0, 2)
-            _add_log(job, f"[{name}] Exception after {dur}s: {exc}")
-            return [], str(exc), 0
-
-    found_by, counts, errors = {}, {}, []
-    with ThreadPoolExecutor(max_workers=min(6, total_sources)) as pool:
-        futures = {pool.submit(_execute_provider, name): name for name in selected}
-        if active_dns:
-            futures[pool.submit(
-                dns_brute_force,
-                job['domain'],
-                None,
-                500,
-                job.get('active_wordlist', '5000'),
-                lambda m: _add_log(job, f"{m}"),
-                job.get('verbose_dns', True)
-            )] = 'active-dns'
-        for future in as_completed(futures):
-            name = futures[future]
-            try:
-                values, error, count = future.result()
-            except Exception as exc:
-                values, error, count = [], f'{type(exc).__name__}: {exc}', 0
-            counts[name] = count
-            for host in normalize_subdomains(values, job['domain']):
-                found_by.setdefault(host, set()).add(name)
-            if error and not values:
-                errors.append(f'{name}: {error}')
-            with JOBS_LOCK:
-                if job['cancelled']:
-                    _add_log(job, "[!] Scan was cancelled by user.")
-                    return
-                job['progress'] = f'Finished {len(counts)}/{total_sources} sources'
-                job['live_count'] = len(found_by)
-
-    _add_log(job, f"[*] Merging & de-duplicating subdomains across all engines...")
-    dns = {}
+    main_target = clean(job['domain'])
     selected_res = job.get('selected_resolver', 'all')
+    found_by, counts, errors = {}, {}, []
 
     # 1. Fast, guaranteed audit of Main Target Domain (Apex / Root Domain)
-    main_target = clean(job['domain'])
     main_ips = []
     main_cname = ''
     main_summary = ''
@@ -319,7 +286,7 @@ def _run_scan(job_id, selected):
     job['main_domain'] = main_item
     job['main_domain_intel'] = main_item
 
-    # 2. Check for Wildcard DNS (*.target.com)
+    # 2. Check for Wildcard DNS (*.target.com) upfront
     wc_info = {'is_wildcard': False, 'wildcard_ips': [], 'wildcard_cnames': []}
     if job.get('dns_validation') or job.get('active_dns'):
         wc_info = detect_wildcard_dns(main_target, timeout=1.5)
@@ -327,7 +294,7 @@ def _run_scan(job_id, selected):
             _add_log(job, f"[!] NOTICE: Wildcard DNS (*.{main_target}) is ACTIVE -> IPs: {', '.join(wc_info['wildcard_ips'])}. False-positive catchall filtering enabled.")
     job['wildcard_dns'] = wc_info
 
-    # 2.5 Authoritative Name Servers Open Zone Transfer (AXFR) Pre-Flight Check
+    # 2.5 Authoritative Name Servers Open Zone Transfer (AXFR) Pre-Flight Check (Zero-Second Jackpot)
     try:
         from enumerator.axfr_auditor import check_zone_transfer
         _add_log(job, "[*] Auditing authoritative nameservers for DNS Zone Transfer (AXFR)...")
@@ -339,10 +306,89 @@ def _run_scan(job_id, selected):
             for s in axfr_subs:
                 if s != main_target:
                     found_by.setdefault(s, set()).add('axfr')
+            counts['axfr'] = len(axfr_subs)
         else:
             _add_log(job, f"[*] DNS Zone Transfer rejected by authoritative nameservers (Standard/Secure).")
     except Exception as exc:
         _add_log(job, f"[!] AXFR pre-flight notice: {exc}")
+
+    # Harvest authoritative DNS records for Shodan 1:1 schema
+    try:
+        from enumerator.shodan_exporter import fetch_domain_apex_records
+        _add_log(job, "[*] Harvesting authoritative DNS infrastructure records (MX, NS, SOA, TXT, DMARC)...")
+        apex_records = fetch_domain_apex_records(main_target, timeout=3.0, specific_resolver=selected_res)
+        job['apex_records'] = apex_records
+        if apex_records:
+            types_found = list(dict.fromkeys(r['type'] for r in apex_records))
+            _add_log(job, f"[DNS-INTEL] Captured {len(apex_records)} authoritative records ({', '.join(types_found)})")
+    except Exception as exc:
+        _add_log(job, f"[!] Apex DNS harvest notice: {exc}")
+
+    # 3. Concurrent Passive & Active Discovery
+    def _execute_provider(name):
+        _add_log(job, f"[{name}] Starting query worker...")
+        t0 = time.time()
+        try:
+            values, err, cnt = PROVIDERS[name](job['domain'])
+            dur = round(time.time() - t0, 2)
+            if err:
+                _add_log(job, f"[{name}] Finished ({dur}s) with notice: {err} | Found {cnt}")
+            else:
+                _add_log(job, f"[{name}] Finished successfully ({dur}s) | Found {cnt} subdomains")
+            for val in values[:25]:
+                _add_log(job, f"[{name}] Discovered -> {val}")
+            if len(values) > 25:
+                _add_log(job, f"[{name}] ... and {len(values) - 25} more subdomains")
+            return values, err, cnt
+        except Exception as exc:
+            dur = round(time.time() - t0, 2)
+            _add_log(job, f"[{name}] Exception after {dur}s: {exc}")
+            return [], str(exc), 0
+
+    run_active = active_dns
+    if active_dns and wc_info.get('is_wildcard'):
+        _add_log(job, f"[ACTIVE-DNS] Wildcard DNS active on *.{main_target}. Applying intelligent baseline filtering...")
+
+    pool_workers = min(20, max(1, len(selected) + (1 if run_active else 0)))
+    with ThreadPoolExecutor(max_workers=pool_workers) as pool:
+        futures = {pool.submit(_execute_provider, name): name for name in selected}
+        if run_active:
+            _add_log(job, f"[ACTIVE-DNS] 🚀 Starting Active DNS brute-force ({job.get('active_wordlist', '5000')} wordlist) against *.{main_target}...")
+            futures[pool.submit(
+                dns_brute_force,
+                job['domain'],
+                None,
+                60,  # Safe concurrency that preserves router sockets for concurrent passive HTTP engines
+                job.get('active_wordlist', '5000'),
+                lambda m: _add_log(job, f"{m}"),
+                job.get('verbose_dns', True),
+                allow_wildcard_filtering=True,
+                wildcard_ips=wc_info.get('wildcard_ips', [])
+            )] = 'active-dns'
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                values, error, count = future.result()
+            except Exception as exc:
+                values, error, count = [], f'{type(exc).__name__}: {exc}', 0
+            counts[name] = count
+            for host in normalize_subdomains(values, job['domain']):
+                found_by.setdefault(host, set()).add(name)
+            if error and not values:
+                err_str = str(error).lower()
+                # Do not surface benign third-party free tier rate limits (like HackerTarget daily quota or SSLMate 429)
+                # as alarming job errors in the UI banner if the scan pipeline is operating normally
+                if 'wildcard' not in err_str and 'rate limit' not in err_str and 'api count' not in err_str and 'quota' not in err_str:
+                    errors.append(f'{name}: {error}')
+            with JOBS_LOCK:
+                if job['cancelled']:
+                    _add_log(job, "[!] Scan was cancelled by user.")
+                    return
+                job['progress'] = f'Finished {len(counts)}/{total_sources} sources'
+                job['live_count'] = len(found_by)
+
+    _add_log(job, f"[*] Merging & de-duplicating subdomains across all engines...")
+    dns = {}
 
     # 3. Audit All Discovered Subdomains
     if job['dns_validation']:
@@ -364,13 +410,20 @@ def _run_scan(job_id, selected):
                     res_info = {'status': 'unresolved', 'ips': [], 'cname': '', 'resolver': 'System DNS'}
                 dns[host] = res_info
                 checked_count += 1
-                if res_info.get('status') == 'resolved':
+                is_catchall = is_wildcard_false_positive(res_info.get('ips', []), res_info.get('cname', ''), wc_info)
+                if res_info.get('status') == 'resolved' and not is_catchall:
                     live_count += 1
                     resolver_label = res_info.get('resolver', 'Public DNS')
                     ip_part = f" -> {res_info['ips'][0]}" if res_info.get('ips') else ""
                     _add_log(job, f"[DNS-CHECK] 🎯 {host} -> [RESOLVED] via {resolver_label}{ip_part}")
+                elif is_catchall:
+                    dead_count += 1
+                    wc_ip = wc_info.get('wildcard_ips', [''])[0] if wc_info.get('wildcard_ips') else ''
+                    wc_ip_str = f" (Points to catchall baseline {wc_ip})" if wc_ip else ""
+                    _add_log(job, f"[DNS-CHECK] ⚠️ {host} -> [DEAD / WILDCARD CATCH-ALL]{wc_ip_str}")
                 else:
                     dead_count += 1
+                    _add_log(job, f"[DNS-CHECK] 🔴 {host} -> [DEAD] (NXDOMAIN across resolvers)")
 
                 if checked_count % 50 == 0 or checked_count == total_hosts:
                     _add_log(job, f"[*] [DNS-PROGRESS] Verified {checked_count}/{total_hosts} hosts ({live_count} Live, {dead_count} Dead across resolvers)...")
@@ -455,10 +508,11 @@ def _run_scan(job_id, selected):
             nested_subs = discover_nested_subdomains(
                 main_target,
                 current_hosts,
-                max_candidates=1200,
+                max_candidates=300,
                 max_workers=60,
                 dns_resolver=selected_res,
-                log_cb=lambda m: _add_log(job, m)
+                log_cb=lambda m: _add_log(job, m),
+                wildcard_info=wc_info
             )
             new_nested = [s for s in nested_subs if s not in found_by and s != main_target]
             if new_nested:
@@ -471,7 +525,15 @@ def _run_scan(job_id, selected):
         if job['cancelled']:
             return
         job.update(status='completed', progress='Completed', sources=counts, errors=errors, results=results)
-        CACHE[job['cache_key']] = (time.time(), copy.deepcopy(results), counts.copy(), errors.copy(), copy.deepcopy(main_item))
+        CACHE[job['cache_key']] = (
+            time.time(),
+            copy.deepcopy(results),
+            counts.copy(),
+            errors.copy(),
+            copy.deepcopy(main_item),
+            copy.deepcopy(wc_info),
+            copy.deepcopy(job.get('axfr_audit'))
+        )
         save_scan_history(job['id'], job['domain'], results, counts)
     _add_log(job, f"[SUCCESS] Scan completed! Found {len(results)} total unique subdomains.")
 
@@ -498,6 +560,7 @@ def api_info():
 
 @app.post('/api/scan')
 def scan():
+    _ensure_cleanup_thread()
     data = request.get_json(silent=True) or {}
     domain = (data.get('domain') or '').strip().lower().rstrip('.')
     if not valid_domain(domain):
@@ -540,9 +603,13 @@ def scan():
         cached = CACHE.get(cache_key)
         if cached and now - cached[0] < CACHE_TTL_SECONDS:
             cached_main = cached[4] if len(cached) > 4 else None
+            cached_wc = cached[5] if len(cached) > 5 else None
+            cached_axfr = cached[6] if len(cached) > 6 else None
             job.update(status='completed', progress='Completed (cached)', results=copy.deepcopy(cached[1]),
                        sources=cached[2].copy(), errors=cached[3].copy(), cached=True,
-                       main_domain=copy.deepcopy(cached_main))
+                       main_domain=copy.deepcopy(cached_main),
+                       wildcard_dns=copy.deepcopy(cached_wc),
+                       axfr_audit=copy.deepcopy(cached_axfr))
         JOBS[job['id']] = job
 
     if job['status'] != 'completed':
@@ -582,27 +649,44 @@ def _completed_job(job_id):
 
     # Check SQLite database for past scan history
     try:
-        from enumerator.history_store import _get_conn
-        with _get_conn() as conn:
-            row = conn.execute(
-                'SELECT id, domain, count, sources_json, subdomains_json FROM scan_history WHERE id = ?',
-                (job_id,)
-            ).fetchone()
+        from enumerator.history_store import get_conn
+        with get_conn() as conn:
+            try:
+                row = conn.execute(
+                    'SELECT id, domain, count, sources_json, subdomains_json, results_json FROM scan_history WHERE id = ?',
+                    (job_id,)
+                ).fetchone()
+            except Exception:
+                row = conn.execute(
+                    'SELECT id, domain, count, sources_json, subdomains_json FROM scan_history WHERE id = ?',
+                    (job_id,)
+                ).fetchone()
+
             if row:
-                subs = json.loads(row['subdomains_json'] or '[]')
                 sources = json.loads(row['sources_json'] or '{}')
                 src_list = list(sources.keys()) if sources else ['History']
-                results = [
-                    {
-                        'subdomain': s,
-                        'sources': src_list,
-                        'confidence': 'high',
-                        'dns': 'not-checked',
-                        'dns_ips': [],
-                        'cname': ''
-                    }
-                    for s in subs
-                ]
+                raw_results = None
+                try:
+                    if 'results_json' in row.keys() and row['results_json']:
+                        raw_results = json.loads(row['results_json'])
+                except Exception:
+                    raw_results = None
+
+                if raw_results and isinstance(raw_results, list) and len(raw_results) > 0 and isinstance(raw_results[0], dict):
+                    results = raw_results
+                else:
+                    subs = json.loads(row['subdomains_json'] or '[]')
+                    results = [
+                        {
+                            'subdomain': s,
+                            'sources': src_list,
+                            'confidence': 'high',
+                            'dns': 'not-checked',
+                            'dns_ips': [],
+                            'cname': ''
+                        }
+                        for s in subs
+                    ]
                 restored = {
                     'id': row['id'],
                     'domain': row['domain'],
@@ -612,9 +696,11 @@ def _completed_job(job_id):
                     'sources': sources,
                     'errors': [],
                     'cached': True,
+                    'cancelled': False,
                     'dns_validation': False,
                     'created_at': time.time(),
-                    'logs': []
+                    'logs': [],
+                    'main_domain': None,
                 }
                 with JOBS_LOCK:
                     JOBS[job_id] = restored
@@ -625,43 +711,95 @@ def _completed_job(job_id):
     return None, (jsonify(error='Scan job not found.'), 404)
 
 
+def _is_result_live(r: Dict[str, Any]) -> bool:
+    """Returns True if the subdomain record resolved to live DNS/IP."""
+    if r.get('is_wildcard_catchall') or r.get('dns') == 'wildcard-catchall' or r.get('is_dead') is True:
+        return False
+    if r.get('is_live') is True:
+        return True
+    if r.get('dns') in ('unresolved', 'nxdomain'):
+        return False
+    return bool(r.get('dns_ips') or r.get('primary_ip') or r.get('dns') == 'resolved')
+
+
+def _is_result_dead(r: Dict[str, Any]) -> bool:
+    """Returns True if the subdomain record failed DNS resolution or is unresolvable."""
+    return not _is_result_live(r)
+
+
+def _filter_results(results: List[Dict[str, Any]], status_filter: str = 'all', query: str = '') -> List[Dict[str, Any]]:
+    """Filters results by status (all, live, dead) and optional search query."""
+    status = (status_filter or 'all').strip().lower()
+    if status == 'live':
+        filtered = [r for r in results if _is_result_live(r)]
+    elif status == 'dead':
+        filtered = [r for r in results if _is_result_dead(r)]
+    else:
+        filtered = list(results)
+
+    if query:
+        q = query.strip().lower()
+        filtered = [
+            r for r in filtered
+            if q in r.get('subdomain', '').lower()
+            or q in (r.get('primary_ip') or '').lower()
+            or q in (r.get('waf_provider') or '').lower()
+        ]
+
+    return filtered
+
+
 @app.get('/api/results.txt')
 def results_txt():
     job, error = _completed_job(request.args.get('job', ''))
     if error:
         return error
+    status_filter = (request.args.get('status') or request.args.get('filter') or 'all').strip().lower()
+    query = request.args.get('q', '').strip()
+    results = _filter_results(job.get('results', []), status_filter, query)
     raw = request.args.get('raw', '').lower() in ('1', 'true', 'yes')
-    header = "" if raw else f"# SubZero • Developed by Gulam Khan\n# Target: {job['domain']} • Total Found: {len(job['results'])}\n\n"
-    body = header + '\n'.join(row['subdomain'] for row in job['results'])
+    filter_label = f" ({status_filter.upper()})" if status_filter in ('live', 'dead') else ""
+    header = "" if raw else f"# SubZero • Developed by Gulam Khan\n# Target: {job['domain']} • Total Found{filter_label}: {len(results)}\n\n"
+    body = header + '\n'.join(row['subdomain'] for row in results)
+    filename_suffix = f"_{status_filter}" if status_filter in ('live', 'dead') else ""
     return Response(body + ('\n' if body else ''), mimetype='text/plain',
-                    headers={'Content-Disposition': f'attachment; filename={job["domain"]}_subdomains.txt'})
+                    headers={'Content-Disposition': f'attachment; filename={job["domain"]}{filename_suffix}_subdomains.txt'})
 
 @app.get('/api/results/ips.txt')
 def results_ips_txt():
     job, error = _completed_job(request.args.get('job', ''))
     if error:
         return error
+    status_filter = (request.args.get('status') or request.args.get('filter') or 'all').strip().lower()
+    query = request.args.get('q', '').strip()
+    results = _filter_results(job.get('results', []), status_filter, query)
     all_ips = set()
-    for row in job.get('results', []):
+    for row in results:
         for ip in row.get('dns_ips', []):
             if ip and ip.strip():
                 all_ips.add(ip.strip())
     sorted_ips = sorted(all_ips)
     raw = request.args.get('raw', '').lower() in ('1', 'true', 'yes')
-    header = "" if raw else f"# SubZero • Developed by Gulam Khan\n# Target: {job['domain']} • Unique Resolved IPs: {len(sorted_ips)}\n\n"
+    filter_label = f" ({status_filter.upper()})" if status_filter in ('live', 'dead') else ""
+    header = "" if raw else f"# SubZero • Developed by Gulam Khan\n# Target: {job['domain']} • Unique Resolved IPs{filter_label}: {len(sorted_ips)}\n\n"
     body = header + '\n'.join(sorted_ips)
+    filename_suffix = f"_{status_filter}" if status_filter in ('live', 'dead') else ""
     return Response(body + ('\n' if body else ''), mimetype='text/plain',
-                    headers={'Content-Disposition': f'attachment; filename={job["domain"]}_unique_ips.txt'})
+                    headers={'Content-Disposition': f'attachment; filename={job["domain"]}{filename_suffix}_unique_ips.txt'})
 
 @app.get('/api/results.csv')
 def results_csv():
     job, error = _completed_job(request.args.get('job', ''))
     if error:
         return error
+    status_filter = (request.args.get('status') or request.args.get('filter') or 'all').strip().lower()
+    query = request.args.get('q', '').strip()
+    results = _filter_results(job.get('results', []), status_filter, query)
     raw = request.args.get('raw', '').lower() in ('1', 'true', 'yes')
     out = io.StringIO(); w = csv.writer(out)
     if not raw:
-        w.writerow(['# SubZero', 'Developed by Gulam Khan', f'Target: {job["domain"]}'])
+        filter_note = f' [Filter: {status_filter.upper()}]' if status_filter in ('live', 'dead') else ''
+        w.writerow(['# SubZero', 'Developed by Gulam Khan', f'Target: {job["domain"]}{filter_note}'])
     w.writerow(['subdomain', 'sources', 'confidence', 'dns', 'primary_ip', 'waf_provider', 'is_origin', 'dns_resolver', 'dns_ips'])
     w.writerows([[
         row['subdomain'],
@@ -673,9 +811,10 @@ def results_csv():
         'YES (Origin 🔥)' if row.get('is_origin') else ('NO (CDN/WAF)' if row.get('is_cdn') else 'Unknown'),
         row.get('dns_resolver', ''),
         ', '.join(row.get('dns_ips', []))
-    ] for row in job['results']])
+    ] for row in results])
+    filename_suffix = f"_{status_filter}" if status_filter in ('live', 'dead') else ""
     return Response(out.getvalue(), mimetype='text/csv',
-                    headers={'Content-Disposition': f'attachment; filename={job["domain"]}_subdomains.csv'})
+                    headers={'Content-Disposition': f'attachment; filename={job["domain"]}{filename_suffix}_subdomains.csv'})
 
 
 @app.get('/api/results.json')
@@ -683,7 +822,138 @@ def results_json():
     job, error = _completed_job(request.args.get('job', ''))
     if error:
         return error
-    return Response(json.dumps(_job_view(job), indent=2), mimetype='application/json')
+    status_filter = (request.args.get('status') or request.args.get('filter') or 'all').strip().lower()
+    query = request.args.get('q', '').strip()
+    results = _filter_results(job.get('results', []), status_filter, query)
+    job_view = _job_view(job)
+    job_view['results'] = results
+    job_view['total_subdomains'] = len(results)
+    if status_filter in ('live', 'dead'):
+        job_view['status_filter'] = status_filter
+    filename_suffix = f"_{status_filter}" if status_filter in ('live', 'dead') else ""
+    return Response(json.dumps(job_view, indent=2), mimetype='application/json',
+                    headers={'Content-Disposition': f'attachment; filename={job["domain"]}{filename_suffix}_subdomains.json'})
+
+
+@app.get('/api/results/shodan.json')
+def results_shodan_json():
+    """Exports scan results formatted in exact 1:1 Shodan Domain API JSON schema."""
+    job, error = _completed_job(request.args.get('job', ''))
+    if error:
+        return error
+    status_filter = (request.args.get('status') or request.args.get('filter') or 'all').strip().lower()
+    query = request.args.get('q', '').strip()
+    results = _filter_results(job.get('results', []), status_filter, query)
+    from enumerator.shodan_exporter import export_shodan_format
+    shodan_data = export_shodan_format(
+        job['domain'],
+        results,
+        apex_records=job.get('apex_records')
+    )
+    filename_suffix = f"_{status_filter}" if status_filter in ('live', 'dead') else ""
+    return Response(
+        json.dumps(shodan_data, indent=4),
+        mimetype='application/json',
+        headers={'Content-Disposition': f'attachment; filename={job["domain"]}{filename_suffix}_shodan.json'}
+    )
+
+
+@app.get('/api/shodan/domain')
+def api_shodan_domain():
+    """
+    Shodan-compatible domain reconnaissance endpoint.
+    Accepts ?job=<job_id> or ?domain=<domain_name>.
+    Returns 1:1 identical Shodan Domain API response.
+    """
+    job_id = request.args.get('job', '').strip()
+    domain = request.args.get('domain', '').strip().lower()
+
+    from enumerator.shodan_exporter import export_shodan_format
+
+    if job_id:
+        job, error = _completed_job(job_id)
+        if error:
+            return error
+        shodan_data = export_shodan_format(
+            job['domain'],
+            job.get('results', []),
+            apex_records=job.get('apex_records')
+        )
+        return jsonify(shodan_data)
+
+    if not domain:
+        return jsonify(error="Query parameter 'domain' or 'job' is required"), 400
+
+    # Check for active or past job for this domain
+    with JOBS_LOCK:
+        matched_job = None
+        for j in reversed(list(JOBS.values())):
+            if j.get('domain') == domain and j.get('status') == 'completed':
+                matched_job = j
+                break
+
+    if matched_job:
+        shodan_data = export_shodan_format(
+            matched_job['domain'],
+            matched_job.get('results', []),
+            apex_records=matched_job.get('apex_records')
+        )
+        return jsonify(shodan_data)
+
+    shodan_data = export_shodan_format(domain, results=[], include_live_apex=True)
+    return jsonify(shodan_data)
+
+
+@app.get('/dns/domain/<domain>')
+@app.get('/api/dns/domain/<domain>')
+def shodan_domain_direct(domain: str):
+    """
+    1:1 drop-in replacement endpoint for Shodan's Domain API:
+    https://api.shodan.io/dns/domain/{domain}
+    Allows client backends to point directly to SubZero without URL rewriting.
+    """
+    clean_domain = (domain or '').strip().lower().rstrip('.')
+    if not clean_domain:
+        return jsonify(error="Domain is required"), 400
+
+    from enumerator.shodan_exporter import export_shodan_format
+
+    # 1. Check in-memory completed jobs
+    with JOBS_LOCK:
+        matched_job = None
+        for j in reversed(list(JOBS.values())):
+            if j.get('domain') == clean_domain and j.get('status') == 'completed':
+                matched_job = j
+                break
+
+    if matched_job:
+        shodan_data = export_shodan_format(
+            matched_job['domain'],
+            matched_job.get('results', []),
+            apex_records=matched_job.get('apex_records')
+        )
+        return jsonify(shodan_data)
+
+    # 2. Check persistent scan history database
+    try:
+        from enumerator.history_store import _get_conn
+        with _get_conn() as conn:
+            row = conn.execute(
+                'SELECT id, domain, subdomains_json FROM scan_history WHERE domain = ? ORDER BY timestamp DESC LIMIT 1',
+                (clean_domain,)
+            ).fetchone()
+            if row:
+                subs = json.loads(row['subdomains_json'] or '[]')
+                results = [{'subdomain': s} for s in subs]
+                shodan_data = export_shodan_format(clean_domain, results=results, include_live_apex=True)
+                return jsonify(shodan_data)
+    except Exception:
+        pass
+
+    # 3. Live authoritative apex DNS fallback
+    shodan_data = export_shodan_format(clean_domain, results=[], include_live_apex=True)
+    return jsonify(shodan_data)
+
 
 
 @app.get('/api/results.html')
@@ -691,14 +961,35 @@ def results_html():
     job, error = _completed_job(request.args.get('job', ''))
     if error:
         return error
-    results = job['results']
+    status_filter = (request.args.get('status') or request.args.get('filter') or 'all').strip().lower()
+    query = request.args.get('q', '').strip()
+    results = _filter_results(job.get('results', []), status_filter, query)
     resolved_count = sum(1 for r in results if r.get('dns') == 'resolved')
     high_conf_count = sum(1 for r in results if r.get('confidence') == 'high')
+
+    # Ensure WAF and origin classifications are populated for all records
+    for r in results:
+        ips = r.get('dns_ips') or ([r['primary_ip']] if r.get('primary_ip') else [])
+        if ips and ('waf_provider' not in r or not r.get('waf_provider')):
+            intel = classify_ips(ips, cname=r.get('cname', ''))
+            r['waf_provider'] = intel.get('waf_provider', '')
+            r['is_cdn'] = intel.get('is_cdn', False)
+            r['is_origin'] = intel.get('is_origin', False)
+            r['badge_type'] = intel.get('badge_type', '')
+
+    main_domain = job.get('main_domain')
+    if main_domain and (main_domain.get('primary_ip') or main_domain.get('dns_ips')) and not main_domain.get('waf_provider'):
+        m_ips = [main_domain['primary_ip']] if main_domain.get('primary_ip') else main_domain.get('dns_ips', [])
+        m_intel = classify_ips(m_ips, cname=main_domain.get('cname', ''))
+        main_domain['waf_provider'] = m_intel.get('waf_provider', '')
+        main_domain['is_cdn'] = m_intel.get('is_cdn', False)
+        main_domain['is_origin'] = m_intel.get('is_origin', False)
+
     try:
         rendered = render_template(
             'report_template.html',
             domain=job['domain'],
-            main_domain=job.get('main_domain'),
+            main_domain=main_domain,
             results=results,
             total_count=len(results),
             resolved_count=resolved_count,
@@ -710,10 +1001,11 @@ def results_html():
     except Exception:
         # Graceful fallback if report_template.html is missing
         return jsonify(error='HTML report template not available. Use JSON or CSV export instead.'), 501
+    filename_suffix = f"_{status_filter}" if status_filter in ('live', 'dead') else ""
     return Response(
         rendered,
         mimetype='text/html',
-        headers={'Content-Disposition': f'attachment; filename={job["domain"]}_recon_report.html'}
+        headers={'Content-Disposition': f'attachment; filename={job["domain"]}{filename_suffix}_recon_report.html'}
     )
 
 
@@ -886,8 +1178,8 @@ def _get_or_restore_batch(batch_id):
 
     # Try restoring recent batch from SQLite history
     try:
-        from enumerator.history_store import _get_conn
-        with _get_conn() as conn:
+        from enumerator.history_store import get_conn
+        with get_conn() as conn:
             rows = conn.execute('''
                 SELECT domain, id, count, subdomains_json
                 FROM scan_history
@@ -916,7 +1208,9 @@ def _get_or_restore_batch(batch_id):
                                 'domain': d,
                                 'status': 'completed',
                                 'progress': 'Completed',
-                                'results': [{'subdomain': s, 'dns': 'not-checked'} for s in subs]
+                                'cancelled': False,
+                                'results': [{'subdomain': s, 'dns': 'not-checked'} for s in subs],
+                                'main_domain': None,
                             }
 
                 restored_batch = {
@@ -1017,17 +1311,16 @@ def batch_cancel(batch_id):
             return jsonify(error='Batch job not found.'), 404
         batch['cancelled'] = True
         batch['status'] = 'cancelled'
-    # Also cancel the currently running sub-scan job (if any)
-    with BATCH_LOCK:
         current_target = batch.get('current_target')
+        batch_snapshot = copy.deepcopy(batch)
+    # Also cancel the currently running sub-scan job (if any)
     if current_target:
         with JOBS_LOCK:
             for jid, job in JOBS.items():
                 if job.get('domain') == current_target and job.get('status') not in ('completed', 'cancelled'):
                     job.update(cancelled=True, status='cancelled', progress='Cancelled via batch cancel.')
                     break
-    with BATCH_LOCK:
-        return jsonify(batch)
+    return jsonify(batch_snapshot)
 
 
 @app.get('/api/batch/<batch_id>/subdomains')
@@ -1412,25 +1705,6 @@ def api_shodan_free():
     return jsonify(res)
 
 
-
-# =========================================================================
-# HISTORICAL ARCHIVE & WAYBACK URL MINER (OPTION 2)
-# =========================================================================
-
-from enumerator.archive_miner import mine_archive_urls
-
-@app.post('/api/archive/mine')
-def api_archive_mine():
-    data = request.get_json(silent=True) or {}
-    domain = (data.get('domain') or '').strip().lower().rstrip('.')
-    if not domain or not valid_domain(domain):
-        return jsonify(error='Provide a valid root domain (e.g. example.com).'), 400
-
-    limit = min(int(data.get('limit', 2500)), 5000)
-    timeout = min(int(data.get('timeout', 10)), 20)
-
-    res = mine_archive_urls(domain, limit=limit, timeout=timeout)
-    return jsonify(res)
 
 
 # =========================================================================

@@ -292,6 +292,16 @@ Available tools ka live status dekhne ke liye:
 subzero.bat -ls
 ```
 
+Dynamic WAF/CDN & Cloud Provider Intelligence database status dekhne ke liye:
+```bash
+subzero.bat --intel-status
+```
+
+Cloudflare, AWS, Fastly wagairah ke latest IP ranges dynamic download karke refresh karne ke liye:
+```bash
+subzero.bat --update-intel
+```
+
 ---
 
 ### 💡 Pro Tips:

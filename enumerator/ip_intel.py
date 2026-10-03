@@ -11,6 +11,10 @@ import ipaddress
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from enumerator.intelligence.database import GLOBAL_DATABASE
+from enumerator.intelligence.correlation import GLOBAL_CORRELATION_ENGINE
+from enumerator.intelligence.registry import PROVIDER_REGISTRY
+
 NetworkType = Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
 
 # Pre-compiled CIDR networks for Tier-1 Enterprise CDNs & WAFs (IPv4 + IPv6)
@@ -448,6 +452,7 @@ CLOUD_ORIGIN_RANGES: List[Tuple[str, List[NetworkType]]] = [
         [
             ipaddress.ip_network("195.229.0.0/16"),
             ipaddress.ip_network("213.42.0.0/16"),
+            ipaddress.ip_network("5.32.0.0/14"),
             ipaddress.ip_network("5.195.0.0/17"),
             ipaddress.ip_network("83.111.0.0/17"),
             ipaddress.ip_network("94.56.0.0/17"),
@@ -1011,6 +1016,13 @@ def get_ip_geo(ip_str: str) -> Dict[str, str]:
     return {"country_name": name, "country_code": code, "country_flag": flag}
 
 
+def invalidate_cache() -> None:
+    """Invalidates all cached IP and Geo lookup entries across ip_intel and intelligence database."""
+    _match_ip_range.cache_clear()
+    _geo_lookup.cache_clear()
+    GLOBAL_DATABASE.invalidate_cache()
+
+
 @lru_cache(maxsize=4096)
 def _match_ip_range(ip_clean: str) -> Tuple[str, bool, bool, str, str]:
     """Cached internal IP range matching. Returns (provider, is_cdn, is_origin, badge_type, label)."""
@@ -1019,20 +1031,26 @@ def _match_ip_range(ip_clean: str) -> Tuple[str, bool, bool, str, str]:
     except ValueError:
         return ("Invalid IP", False, False, "unknown", "Invalid IP")
 
-    # 1. Check CDN / WAF Ranges first
+    # 1. Check dynamic intelligence database first
+    db_match = GLOBAL_DATABASE.lookup_ip(ip_clean)
+    if db_match:
+        name, is_cdn, is_origin, badge, label, _ = db_match
+        return (name, is_cdn, is_origin, badge, label)
+
+    # 2. Check CDN / WAF Ranges (static fallback)
     for name, networks in CDN_WAF_RANGES:
         for net in networks:
             if ip_obj.version == net.version and ip_obj in net:
                 return (name, True, False, _badge_type_for_provider(name), name)
 
-    # 2. Check Cloud Hosting (Origin Candidates)
+    # 3. Check Cloud Hosting (Origin Candidates)
     for name, networks in CLOUD_ORIGIN_RANGES:
         for net in networks:
             if ip_obj.version == net.version and ip_obj in net:
                 return (name, False, True, "origin", f"{name} (Direct Origin)")
 
-    # 3. Not in any known range — Direct Dedicated Origin
-    return ("Direct Server", False, True, "origin", "Direct Origin IP")
+    # 4. Unknown / Unclassified (Phase 15: Unknown must not equal Direct Origin)
+    return ("Unknown", False, False, "unknown", "Unknown / Unclassified")
 
 
 def classify_ip(ip_str: str) -> Dict[str, Any]:
@@ -1049,60 +1067,43 @@ def classify_ip(ip_str: str) -> Dict[str, Any]:
             "country_name": "Unknown", "country_code": "", "country_flag": "🌐"
         }
 
-    provider, is_cdn, is_origin, badge, label = _match_ip_range(ip_clean)
+    try:
+        ipaddress.ip_address(ip_clean)
+    except ValueError:
+        return {
+            "ip": ip_clean, "is_cdn": False, "waf_provider": "Invalid IP",
+            "is_origin": False, "badge_type": "unknown", "label": "Invalid IP",
+            "country_name": "Unknown", "country_code": "", "country_flag": "🌐"
+        }
+
+    single_res = GLOBAL_CORRELATION_ENGINE.classify_single_ip(ip_clean)
     geo_name, geo_code, geo_flag = _geo_lookup(ip_clean)
 
     return {
-        "ip": ip_clean, "is_cdn": is_cdn, "waf_provider": provider,
-        "is_origin": is_origin, "badge_type": badge, "label": label,
-        "country_name": geo_name, "country_code": geo_code, "country_flag": geo_flag
+        "ip": ip_clean,
+        "is_cdn": single_res.is_cdn,
+        "waf_provider": single_res.waf_provider,
+        "is_origin": single_res.is_origin,
+        "badge_type": single_res.badge_type,
+        "label": single_res.label,
+        "country_name": geo_name,
+        "country_code": geo_code,
+        "country_flag": geo_flag,
+        "network_provider": single_res.network_provider,
+        "service_provider": single_res.service_provider,
+        "waf_confirmed": single_res.waf_confirmed,
+        "confidence": single_res.confidence,
+        "evidence": single_res.evidence.to_dict(),
+        "status": single_res.status,
+        "asn": single_res.asn,
+        "asn_org": single_res.asn_org,
     }
 
 
 def classify_ips(ip_list: List[str], cname: str = "") -> Dict[str, Any]:
     """
     Classifies a list of IPs (and optional CNAME) for a subdomain and returns summary intel.
+    Every resolved IP is independently classified (Phase 14).
     If a CNAME indicates a CDN/WAF provider, it takes precedence or augments the detection.
     """
-    valid_ips = [ip.strip() for ip in (ip_list or []) if ip and ip.strip()]
-
-    # Check CNAME fingerprinting first if available
-    cname_intel = classify_cname(cname) if cname else None
-
-    if not valid_ips:
-        if cname_intel:
-            return {
-                "primary_ip": "",
-                "all_ips": [],
-                "is_cdn": cname_intel["is_cdn"],
-                "waf_provider": cname_intel["waf_provider"],
-                "is_origin": cname_intel["is_origin"],
-                "badge_type": cname_intel["badge_type"],
-                "label": f"{cname_intel['waf_provider']} (CNAME)",
-                "cname": cname.strip(),
-            }
-        return {
-            "primary_ip": "",
-            "all_ips": [],
-            "is_cdn": False,
-            "waf_provider": "None",
-            "is_origin": False,
-            "badge_type": "none",
-            "label": "No IP"
-        }
-
-    primary = valid_ips[0]
-    intel = classify_ip(primary)
-    intel["primary_ip"] = primary
-    intel["all_ips"] = valid_ips
-
-    # If IP is classified as origin/direct, but CNAME definitively points to a CDN/WAF:
-    if cname_intel and not intel["is_cdn"]:
-        intel["is_cdn"] = True
-        intel["waf_provider"] = cname_intel["waf_provider"]
-        intel["is_origin"] = False
-        intel["badge_type"] = cname_intel["badge_type"]
-        intel["label"] = f"{cname_intel['waf_provider']} (CNAME)"
-        intel["cname"] = cname.strip()
-
-    return intel
+    return GLOBAL_CORRELATION_ENGINE.classify_ips_multi(ip_list, cname_str=cname, get_geo_func=get_ip_geo)

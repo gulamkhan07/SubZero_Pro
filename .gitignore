@@ -57,4 +57,5 @@ full_recon.json
 !templates/
 !templates/*.html
 !wordlists/*.txt
+scratch/
 

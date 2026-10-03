@@ -116,6 +116,7 @@ def verify_single_origin_ip(
         "ip": clean_ip,
         "target_domain": clean_domain,
         "is_confirmed_origin": False,
+        "origin_state": "unconfirmed",
         "verified_proto": "",
         "status_code": 0,
         "origin_title": "",
@@ -141,10 +142,11 @@ def verify_single_origin_ip(
             res_title = _extract_title(resp.text)
             server = resp.headers.get("Server", "")
 
-            # 1. Exact Title Match with Public Baseline
+            # 1. Exact Title Match with Public Baseline -> High confidence confirmed origin
             if base_title and res_title and (base_title.lower() == res_title.lower() or base_title.lower() in res_title.lower()):
                 result.update({
                     "is_confirmed_origin": True,
+                    "origin_state": "confirmed",
                     "verified_proto": proto,
                     "status_code": resp.status_code,
                     "origin_title": res_title,
@@ -154,12 +156,13 @@ def verify_single_origin_ip(
                 })
                 return result
 
-            # 2. Domain presence in response body / Location header / Cookies
+            # 2. Domain presence in response body / Location header / Cookies -> Medium confidence probable origin
             resp_text_lower = (resp.text or "").lower()
             location_header = resp.headers.get("Location", "").lower()
             if clean_domain in location_header or (clean_domain in resp_text_lower and resp.status_code in [200, 301, 302]):
                 result.update({
                     "is_confirmed_origin": True,
+                    "origin_state": "probable",
                     "verified_proto": proto,
                     "status_code": resp.status_code,
                     "origin_title": res_title,
@@ -169,15 +172,16 @@ def verify_single_origin_ip(
                 })
                 return result
 
-            # 3. Valid HTTP 200 with matching server attributes — but EXCLUDE default/parking pages
+            # 3. Active HTTP 200 with non-default title -> Candidate origin (unconfirmed content match)
             if resp.status_code == 200 and res_title and not _is_default_page_title(res_title):
                 result.update({
-                    "is_confirmed_origin": True,
+                    "is_confirmed_origin": False,
+                    "origin_state": "candidate",
                     "verified_proto": proto,
                     "status_code": resp.status_code,
                     "origin_title": res_title,
                     "server": server,
-                    "evidence": f"Direct web server active with title: '{res_title[:40]}'",
+                    "evidence": f"Direct web server active with title: '{res_title[:40]}' (origin candidate)",
                     "confidence": "low"
                 })
                 return result

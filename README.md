@@ -43,14 +43,14 @@ SubZero is a modular, decoupled cybersecurity reconnaissance platform featuring 
                       │    SubZero (Web UI & CLI)       │
                       └────────────────┬────────────────┘
                                        │
-         ┌───────────────┬─────────────┼─────────────┬───────────────┐
-         │               │             │             │               │
-  ┌──────▼──────┐ ┌──────▼──────┐ ┌────▼────┐ ┌──────▼──────┐ ┌──────▼──────┐
-  │Single Recon │ │Permutations │ │ Archive │ │Batch Scanner│ │CNAME Auditor│
-  │OSINT+Active │ │  & Mutation │ │  Miner  │ │ Multi-Domain│ │ Takeover    │
-  └──────┬──────┘ └──────┬──────┘ └────┬────┘ └──────┬──────┘ └──────┬──────┘
-         │               │             │             │               │
-         └───────────────┴─────────────┼─────────────┴───────────────┘
+         ┌───────────────┬─────────────┴─────────────┬───────────────┐
+         │               │                           │               │
+  ┌──────▼──────┐ ┌──────▼──────┐             ┌──────▼──────┐ ┌──────▼──────┐
+  │Single Recon │ │Permutations │             │Batch Scanner│ │CNAME Auditor│
+  │OSINT+Active │ │  & Mutation │             │ Multi-Domain│ │ Takeover    │
+  └──────┬──────┘ └──────┬──────┘             └──────┬──────┘ └──────┬──────┘
+         │               │                           │               │
+         └───────────────┴─────────────┬─────────────┴───────────────┘
                                        │
                       ┌────────────────▼────────────────┐
                       │ 11-Tier Tier-1 Public Resolvers │
@@ -83,24 +83,15 @@ SubZero is a modular, decoupled cybersecurity reconnaissance platform featuring 
 - Direct one-click import from Single Recon results into the Permutations engine.
 - Concurrently resolves candidate subdomains with dead/alive filtering.
 
-### 4. 📜 Historical Archive & Wayback URL Intelligence Miner
-- Mines historical endpoints from **Wayback Machine CDX API** and **AlienVault OTX**.
-- Automatically categorizes results into:
-  - 🔴 **Sensitive & Leaked Files**: `.env`, `.git`, `.sql`, `.zip`, `.bak`, and configuration files.
-  - 🔑 **Parameter Endpoints**: URLs with query parameters (`?token=`, `?redirect=`, `?id=`) for vulnerability hunting.
-  - 🌐 **Historical Subdomains**: Dormant or forgotten infrastructure.
-  - ⚡ **API Endpoints**: `/api/v1`, `/graphql`, `/rest` routes.
-  - 📂 **Complete URL Inventory**: Filterable table with in-place one-click copy.
-
-### 5. 🗂️ Multi-Domain Batch Queue Scanner
+### 4. 🗂️ Multi-Domain Batch Queue Scanner
 - Run continuous reconnaissance on up to 25 root domains concurrently.
 - Real-time queue telemetry with aggregated subdomain totals.
 
-### 6. 🔄 History & Attack Surface Diff Tracker
+### 5. 🔄 History & Attack Surface Diff Tracker
 - SQLite-backed historical timeline of all reconnaissance scans.
 - Calculates additions (newly emerged assets), removals (decommissioned subdomains), and common assets between any two dates.
 
-### 7. 🛡️ DNS Asset Integrity & Dangling CNAME Auditor
+### 6. 🛡️ DNS Asset Integrity & Dangling CNAME Auditor
 - Defensive auditing against cloud service signatures: **AWS S3, GitHub Pages, Heroku, Microsoft Azure, Shopify, Zendesk, Fastly, and Surge.sh**.
 - Detects orphaned pointers and dangling CNAME records vulnerable to subdomain takeover.
 
@@ -120,7 +111,6 @@ SubZero is a modular, decoupled cybersecurity reconnaissance platform featuring 
 subzero/
 ├── enumerator/               # Core reconnaissance & intelligence modules
 │   ├── active_scanner.py     # Multi-threaded active DNS wordlist brute-forcer
-│   ├── archive_miner.py      # Wayback Machine & AlienVault URL intelligence
 │   ├── cli.py                # Terminal command-line interface & cyber wizard
 │   ├── cname_auditor.py      # Dangling CNAME takeover vulnerability auditor
 │   ├── dns_resolver.py       # Multi-resolver engine (Cloudflare, Google, Quad9...)
@@ -136,9 +126,8 @@ subzero/
 ├── templates/                # Server-rendered HTML templates
 │   ├── index.html            # Main web dashboard interface
 │   └── report_template.html  # Exportable executive HTML report template
-├── tests/                    # Automated test suite (46 comprehensive unit tests)
+├── tests/                    # Automated test suite (comprehensive unit tests)
 │   ├── conftest.py
-│   ├── test_archive_miner.py
 │   ├── test_cli.py
 │   ├── test_dns_resolver.py
 │   ├── test_ip_intel.py
@@ -244,10 +233,7 @@ subzero -d target.com -a -w 5000 -r --only-resolved -o live_subdomains.txt
 # 3. Target list scan with CNAME takeover auditing and IP intelligence:
 subzero -dL domains.txt -all --cname --ip-intel -oCSV attack_surface.csv
 
-# 4. Full security audit with HTTP probing, Wayback archive URLs, and structured JSON output:
-subzero -d target.com -r --probe --cname --archive -oJ full_recon.json
-
-# 5. Pipeline stdin input (pipe targets directly):
+# 4. Pipeline stdin input (pipe targets directly):
 cat roots.txt | subzero -silent | httpx -silent | nuclei -t cves/
 
 # 6. Pre-flight connectivity diagnostic:
@@ -276,7 +262,6 @@ subzero --check-network
 | `--cname` | Audit for dangling CNAME records (subdomain takeover) |
 | `--probe` | Probe HTTP/HTTPS status code, page title, and server headers |
 | `--ip-intel` | Classify IPs as Direct Origin server vs Cloudflare/CDN/WAF |
-| `--archive` | Mine historical URLs from Wayback Machine and AlienVault |
 | `-o, --output <file>` | Plaintext output file path (one subdomain per line) |
 | `-oJ, --json <file>` | Structured JSON report output file path |
 | `-oCSV, --csv <file>` | CSV report output file path |
@@ -295,7 +280,6 @@ subzero --check-network
 | `GET` | `/api/scan/<id>` | Poll scan progress & telemetry logs | `?since=0` |
 | `POST` | `/api/permutations/generate` | Generate mutation candidate subdomains | `{"domain": "example.com", "seeds": ["api", "dev"], "limit": 300}` |
 | `POST` | `/api/permutations/scan` | Generate and actively resolve mutations | `{"domain": "example.com", "seeds": ["api"], "dns_resolver": "all"}` |
-| `POST` | `/api/archive/mine` | Extract Wayback & AlienVault URLs | `{"domain": "example.com", "limit": 2500}` |
 | `POST` | `/api/batch/start` | Queue multi-domain batch scan | `{"domains": ["target1.com", "target2.com"]}` |
 | `POST` | `/api/probe` | Inspect live HTTP status & server headers | `{"hosts": ["api.example.com", "app.example.com"]}` |
 | `POST` | `/api/audit/cname` | Audit CNAME records for dangling takeovers | `{"hosts": ["s3.example.com"]}` |
@@ -311,7 +295,7 @@ SubZero includes a comprehensive unit test suite:
 ```bash
 pytest tests/
 ```
-All tests validate provider error handling, multi-resolver logic, candidate generation rules, and archive parsing.
+All tests validate provider error handling, multi-resolver logic, and candidate generation rules.
 
 ---
 

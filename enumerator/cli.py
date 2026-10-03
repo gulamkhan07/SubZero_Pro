@@ -29,7 +29,6 @@ from enumerator.dns_resolver import check_domain_multi_resolver, PUBLIC_RESOLVER
 from enumerator.ip_intel import classify_ips
 from enumerator.http_prober import probe_hosts
 from enumerator.cname_auditor import audit_hosts
-from enumerator.archive_miner import mine_archive_urls
 from enumerator.permutation_engine import generate_permutations, scan_permutations
 from enumerator.request_utils import check_network_connectivity
 from enumerator.tls_scraper import scrape_tls_sans
@@ -161,7 +160,6 @@ def run_cli_scan(
     audit_cnames: bool = False,
     probe_http: bool = False,
     ip_intel: bool = False,
-    mine_archives: bool = False,
     run_permutations: bool = False,
     tls_san: bool = False,
     wildcard: bool = False,
@@ -186,7 +184,7 @@ def run_cli_scan(
     source_counts: Dict[str, int] = {}
     errors: List[str] = []
 
-    # DNS Zone Transfer (AXFR) Pre-Flight Check (Zero-Second Jackpot)
+    # 1. DNS Zone Transfer (AXFR) Pre-Flight Check (Zero-Second Jackpot)
     axfr_data: Dict[str, Any] = {}
     if check_axfr:
         log_info("Auditing authoritative Name Servers for open DNS Zone Transfer (AXFR)...", silent)
@@ -204,6 +202,18 @@ def run_cli_scan(
         except Exception as exc:
             errors.append(f"axfr: {exc}")
 
+    # 2. Wildcard DNS Detection (Early Check)
+    wc_info = {'is_wildcard': False, 'wildcard_ips': [], 'wildcard_cnames': []}
+    if wildcard or active_dns:
+        try:
+            wc_info = detect_wildcard_dns(domain, timeout=2.0)
+            if wc_info.get('is_wildcard'):
+                log_warn(f"Wildcard DNS detected (*.{domain}) -> IPs: {', '.join(wc_info['wildcard_ips'])}", silent)
+            elif wildcard:
+                log_info(f"No wildcard DNS detected for {domain}", silent)
+        except Exception as exc:
+            errors.append(f"wildcard_detector: {exc}")
+
     def _execute_provider(name: str):
         t0 = time.time()
         try:
@@ -218,41 +228,45 @@ def run_cli_scan(
         except Exception as exc:
             return name, [], str(exc), 0
 
-    # Passive Enumeration Pool
-    total_workers = min(len(sources), 8) or 1
+    # 3. Passive Enumeration Pool
+    total_workers = min(len(sources), 10) or 1
     with ThreadPoolExecutor(max_workers=total_workers) as pool:
         futures = [pool.submit(_execute_provider, name) for name in sources]
         for future in as_completed(futures):
             name, values, err, cnt = future.result()
             source_counts[name] = cnt
-            if err:
+            if err and not values:
                 errors.append(f"{name}: {err}")
             for host in normalize_subdomains(values, domain):
                 found_by.setdefault(host, set()).add(name)
 
-    # Active DNS Brute-Forcing (if requested)
+    # 4. Active DNS Brute-Forcing (if requested)
     if active_dns:
-        log_info(f"Starting active DNS wordlist brute-forcing ({wordlist_size} prefixes, {active_threads} threads)...", silent)
-        try:
-            active_vals, active_err, active_cnt = dns_brute_force(
-                domain=domain,
-                wordlist=None,
-                max_workers=active_threads,
-                wordlist_size=wordlist_size,
-                log_callback=(lambda m: log_info(f"[DNS-BRUTE] {m}", silent)) if verbose else None,
-                verbose=verbose
-            )
-            source_counts['active-dns'] = active_cnt
-            if active_err:
-                errors.append(f"active-dns: {active_err}")
-            for host in normalize_subdomains(active_vals, domain):
-                found_by.setdefault(host, set()).add('active-dns')
-            log_success(f"Active DNS brute force discovered {active_cnt} subdomains", silent)
-        except Exception as exc:
-            errors.append(f"active-dns: {exc}")
-            log_error(f"Active DNS brute-forcing encountered an error: {exc}", silent)
+        if wc_info.get('is_wildcard'):
+            log_warn(f"Wildcard DNS active on *.{domain}. Active brute-forcing skipped to prevent false-positive flood.", silent)
+            source_counts['active-dns'] = 0
+        else:
+            log_info(f"Starting active DNS wordlist brute-forcing ({wordlist_size} prefixes, {active_threads} threads)...", silent)
+            try:
+                active_vals, active_err, active_cnt = dns_brute_force(
+                    domain=domain,
+                    wordlist=None,
+                    max_workers=active_threads,
+                    wordlist_size=wordlist_size,
+                    log_callback=(lambda m: log_info(f"[DNS-BRUTE] {m}", silent)) if verbose else None,
+                    verbose=verbose
+                )
+                source_counts['active-dns'] = active_cnt
+                if active_err and 'wildcard' not in str(active_err).lower():
+                    errors.append(f"active-dns: {active_err}")
+                for host in normalize_subdomains(active_vals, domain):
+                    found_by.setdefault(host, set()).add('active-dns')
+                log_success(f"Active DNS brute force discovered {active_cnt} subdomains", silent)
+            except Exception as exc:
+                errors.append(f"active-dns: {exc}")
+                log_error(f"Active DNS brute-forcing encountered an error: {exc}", silent)
 
-    # Permutations (if requested)
+    # 5. Permutations (if requested)
     if run_permutations and found_by:
         log_info("Generating dynamic permutations and mutations on discovered subdomains...", silent)
         try:
@@ -280,19 +294,6 @@ def run_cli_scan(
             log_success(f"Permutations uncovered {perm_resolved} live subdomains", silent)
         except Exception as exc:
             errors.append(f"permutations: {exc}")
-
-    # Wildcard DNS Detection (if requested)
-    wc_info = {'is_wildcard': False, 'wildcard_ips': [], 'wildcard_cnames': []}
-    if wildcard:
-        log_info(f"Checking for wildcard DNS catch-all (*.{domain})...", silent)
-        try:
-            wc_info = detect_wildcard_dns(domain, timeout=2.0)
-            if wc_info.get('is_wildcard'):
-                log_warn(f"Wildcard DNS detected (*.{domain}) -> IPs: {', '.join(wc_info['wildcard_ips'])}", silent)
-            else:
-                log_info(f"No wildcard DNS detected for {domain}", silent)
-        except Exception as exc:
-            errors.append(f"wildcard_detector: {exc}")
 
     # DNS Resolution Validation (if requested)
     dns_records: Dict[str, Dict[str, Any]] = {}
@@ -376,7 +377,8 @@ def run_cli_scan(
                 max_candidates=1000,
                 max_workers=60,
                 dns_resolver=selected_resolver,
-                log_cb=(lambda m: log_info(m, silent)) if verbose else None
+                log_cb=(lambda m: log_info(m, silent)) if verbose else None,
+                wildcard_info=wc_info
             )
             new_nested = [s for s in nested_subs if s not in found_by and s != domain]
             if new_nested:
@@ -390,29 +392,6 @@ def run_cli_scan(
                             dns_records[fut_map[f]] = f.result()
         except Exception as exc:
             errors.append(f"nested_engine: {exc}")
-
-
-    # Archive Mining (if requested)
-    archive_urls: List[str] = []
-    if mine_archives:
-        log_info(f"Mining historical endpoints from Wayback Machine and AlienVault...", silent)
-        try:
-            archive_data = mine_archive_urls(domain)
-            archive_urls = archive_data.get('urls') or archive_data.get('sample_urls', [])
-            log_success(f"Archived URLs harvested: {len(archive_urls)} endpoints", silent)
-            hist_subs = archive_data.get('historical_subdomains', [])
-            new_hist = [hs for hs in hist_subs if hs != domain and hs not in found_by]
-            if new_hist:
-                log_success(f"Archive mining uncovered {len(new_hist)} historical subdomains", silent)
-                for hs in new_hist:
-                    found_by.setdefault(hs, set()).add('archive-miner')
-                if resolve_dns:
-                    with ThreadPoolExecutor(max_workers=min(20, len(new_hist))) as pool:
-                        fut_map = {pool.submit(check_domain_multi_resolver, s, selected_resolver): s for s in new_hist}
-                        for f in as_completed(fut_map):
-                            dns_records[fut_map[f]] = f.result()
-        except Exception as exc:
-            errors.append(f"archive_miner: {exc}")
 
     # CNAME Takeover Audit (if requested)
     cname_results: List[Dict[str, Any]] = []
@@ -504,7 +483,6 @@ def run_cli_scan(
         'errors': errors,
         'elapsed': elapsed,
         'cname_audits': cname_results,
-        'archive_urls': archive_urls,
         'axfr_audit': axfr_data,
     }
 
@@ -517,6 +495,7 @@ def write_outputs(
     txt_path: str = None,
     json_path: str = None,
     csv_path: str = None,
+    shodan_json_path: str = None,
     only_resolved: bool = False,
 ):
     results = scan_data.get('results', [])
@@ -542,7 +521,6 @@ def write_outputs(
             'source_statistics': scan_data.get('sources', {}),
             'errors': scan_data.get('errors', []),
             'cname_audits': scan_data.get('cname_audits', []),
-            'archive_urls': scan_data.get('archive_urls', []),
             'axfr_audit': scan_data.get('axfr_audit', {}),
         }
         with open(json_path, 'w', encoding='utf-8') as f:
@@ -567,6 +545,17 @@ def write_outputs(
                     r.get('http_title', ''),
                     r.get('http_server', ''),
                 ])
+
+    # Shodan 1:1 Schema JSON output
+    if shodan_json_path:
+        from enumerator.shodan_exporter import export_shodan_format
+        shodan_payload = export_shodan_format(
+            scan_data.get('domain'),
+            results,
+            apex_records=scan_data.get('apex_records')
+        )
+        with open(shodan_json_path, 'w', encoding='utf-8') as f:
+            json.dump(shodan_payload, f, indent=4)
 
 
 def display_terminal_summary(scan_data: Dict[str, Any], only_resolved: bool = False):
@@ -696,7 +685,6 @@ def build_parser() -> argparse.ArgumentParser:
     security_group.add_argument("--cname", dest="cname", action="store_true", help="Audit for dangling CNAME records (subdomain takeover)")
     security_group.add_argument("--probe", dest="probe", action="store_true", help="Probe HTTP/HTTPS alive status, page title, and server headers")
     security_group.add_argument("--ip-intel", dest="ip_intel", action="store_true", help="Classify IPs as Direct Origin server vs Cloudflare/CDN/WAF")
-    security_group.add_argument("--archive", dest="archive", action="store_true", help="Mine historical URLs from Wayback Machine & AlienVault")
     security_group.add_argument("--tls-san", dest="tls_san", action="store_true", help="Direct TLS SAN Certificate Scraper across port 443 of resolved IPs")
     security_group.add_argument("--wildcard", dest="wildcard", action="store_true", help="Detect DNS wildcard catch-all (*.domain) and flag false positives")
     security_group.add_argument("--verify-origin", dest="verify_origin", action="store_true", help="Actively probe candidate Origin IPs (Host header) to verify True Origin / WAF bypass")
@@ -710,12 +698,15 @@ def build_parser() -> argparse.ArgumentParser:
     output_group.add_argument("-o", "--output", dest="output", help="Plaintext output file path (one subdomain per line)")
     output_group.add_argument("-oJ", "--json", dest="json", help="Structured JSON output file path")
     output_group.add_argument("-oCSV", "--csv", dest="csv", help="CSV output file path")
+    output_group.add_argument("--shodan-json", dest="shodan_json", help="Export exact 1:1 Shodan Domain API JSON schema to file")
     output_group.add_argument("-silent", "-q", "--quiet", dest="silent", action="store_true", help="Clean stdout output (only subdomains, pipe-friendly)")
     output_group.add_argument("-v", "--verbose", dest="verbose", action="store_true", help="Enable verbose diagnostic logs")
     output_group.add_argument("--no-color", dest="no_color", action="store_true", help="Disable ANSI terminal colors")
 
     diag_group = parser.add_argument_group("DIAGNOSTICS & SYSTEM")
     diag_group.add_argument("--check-network", dest="check_network", action="store_true", help="Check internet connectivity and OSINT reachability")
+    diag_group.add_argument("--update-intel", dest="update_intel", action="store_true", help="Download and refresh dynamic provider intelligence feeds")
+    diag_group.add_argument("--intel-status", dest="intel_status", action="store_true", help="Display current status and statistics of provider intelligence database")
     diag_group.add_argument("-V", "--version", action="version", version=f"SubZero v{__version__} by {__author__}")
 
     return parser
@@ -828,9 +819,6 @@ def run_interactive_wizard():
     ip_ans = input("  • IP Intelligence (Cloudflare vs Direct Origin Server)? (y/n) [default: y]: ").strip().lower()
     ip_intel = ip_ans not in ('n', 'no')
 
-    archive_ans = input("  • Mine Historical Archive URLs (Wayback Machine & AlienVault)? (y/n) [default: n]: ").strip().lower()
-    mine_archives = archive_ans in ('y', 'yes')
-
     # 6. Output Files
     print(f"\n{Colors.BOLD}[?] Select Output File Export:{Colors.RESET}")
     print("  [1] All Formats (TXT + JSON + CSV) [Recommended]")
@@ -866,7 +854,6 @@ def run_interactive_wizard():
         audit_cnames=audit_cnames,
         probe_http=probe_http,
         ip_intel=ip_intel,
-        mine_archives=mine_archives,
         run_permutations=False,
         check_axfr=check_axfr,
         silent=False,
@@ -923,6 +910,26 @@ def main(argv=None):
                 log_warn(f"  • {err}", silent=False)
             log_warn(f"Advice: {net_status.get('advice')}", silent=False)
             sys.exit(1)
+
+    # Intelligence database diagnostics & updates
+    if args.intel_status:
+        from enumerator.intelligence.database import GLOBAL_DATABASE
+        from enumerator.intelligence.registry import PROVIDER_REGISTRY
+        print_banner(silent=False)
+        total_p = len(PROVIDER_REGISTRY)
+        v4_count = len(GLOBAL_DATABASE._ipv4_entries)
+        v6_count = len(GLOBAL_DATABASE._ipv6_entries)
+        log_info(f"Intelligence Database: ACTIVE | Cataloged Providers: {total_p} | Indexed Subnets: {v4_count} IPv4, {v6_count} IPv6", silent=False)
+        sys.exit(0)
+
+    if args.update_intel:
+        from enumerator.intelligence.updater import GLOBAL_UPDATER
+        print_banner(silent=False)
+        log_info("Refreshing dynamic provider intelligence feeds...", silent=False)
+        res = GLOBAL_UPDATER.update_all(force=True)
+        updated_count = sum(1 for r in res.values() if r.get('status') == 'updated')
+        log_success(f"Dynamic intelligence update complete: {updated_count} provider(s) refreshed.", silent=False)
+        sys.exit(0)
 
     # Source listing
     if args.list_sources:
@@ -1030,7 +1037,6 @@ def main(argv=None):
             audit_cnames=args.cname,
             probe_http=args.probe,
             ip_intel=args.ip_intel or args.verify_origin,
-            mine_archives=args.archive,
             run_permutations=args.permute,
             tls_san=args.tls_san,
             wildcard=args.wildcard,
@@ -1053,12 +1059,13 @@ def main(argv=None):
             sys.stdout.flush()
 
         # Write requested output files
-        if args.output or args.json or args.csv:
+        if args.output or args.json or args.csv or getattr(args, 'shodan_json', None):
             write_outputs(
                 scan_data=scan_data,
                 txt_path=args.output,
                 json_path=args.json,
                 csv_path=args.csv,
+                shodan_json_path=getattr(args, 'shodan_json', None),
                 only_resolved=args.only_resolved
             )
             if not args.silent:
@@ -1068,6 +1075,8 @@ def main(argv=None):
                     log_success(f"JSON results exported to: {args.json}", args.silent)
                 if args.csv:
                     log_success(f"CSV results exported to: {args.csv}", args.silent)
+                if getattr(args, 'shodan_json', None):
+                    log_success(f"Shodan 1:1 Schema JSON exported to: {args.shodan_json}", args.silent)
 
         if not args.silent:
             display_terminal_summary(scan_data, only_resolved=args.only_resolved)

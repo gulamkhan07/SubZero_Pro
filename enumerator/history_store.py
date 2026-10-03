@@ -32,6 +32,10 @@ def _get_conn():
         conn.close()
 
 
+# Public alias so external modules don't import the private name.
+get_conn = _get_conn
+
+
 def init_db():
     with _get_conn() as conn:
         conn.execute('''
@@ -45,6 +49,10 @@ def init_db():
                 subdomains_json TEXT NOT NULL
             )
         ''')
+        try:
+            conn.execute('ALTER TABLE scan_history ADD COLUMN results_json TEXT;')
+        except Exception:
+            pass
         conn.execute('CREATE INDEX IF NOT EXISTS idx_domain ON scan_history(domain)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_timestamp ON scan_history(timestamp DESC)')
 
@@ -55,13 +63,14 @@ def save_scan_history(job_id: str, domain: str, results: list, sources: dict):
     formatted = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ts))
     subdomains = [r.get('subdomain', '') if isinstance(r, dict) else str(r) for r in results]
     subdomains = sorted(set(s for s in subdomains if s))
+    results_json = json.dumps(results if isinstance(results, list) else [])
 
     try:
         with _get_conn() as conn:
             conn.execute('''
                 INSERT OR REPLACE INTO scan_history
-                (id, domain, timestamp, formatted_date, count, sources_json, subdomains_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (id, domain, timestamp, formatted_date, count, sources_json, subdomains_json, results_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 job_id,
                 domain.strip().lower().rstrip('.'),
@@ -69,7 +78,8 @@ def save_scan_history(job_id: str, domain: str, results: list, sources: dict):
                 formatted,
                 len(subdomains),
                 json.dumps(sources or {}),
-                json.dumps(subdomains)
+                json.dumps(subdomains),
+                results_json
             ))
     except Exception as e:
         print(f"[!] Warning: Failed to save scan history: {e}", flush=True)

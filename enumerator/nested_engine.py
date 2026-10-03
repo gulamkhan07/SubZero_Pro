@@ -184,8 +184,8 @@ def _check_single_anycast(cand: str, session: Any) -> bool:
     """
     Fast-Path Anycast DNS pre-filter for multi-level subdomain candidates.
     Queries Tier-1 Anycast DoH (Google + Cloudflare fallback).
-    Returns False ONLY on confirmed NXDOMAIN (Status 3).
-    Returns True on NOERROR, presence of Answer records, or any network ambiguity to ensure zero false negatives.
+    Returns True ONLY if an Answer record is present.
+    Returns False on confirmed NXDOMAIN (Status 3) or NODATA (Status 0 without Answer).
     """
     try:
         # Tier-1 Anycast Endpoint 1: Google Public DNS
@@ -193,9 +193,10 @@ def _check_single_anycast(cand: str, session: Any) -> bool:
         if r.status_code == 200:
             d = r.json()
             st = d.get("Status")
-            if st == 0 or d.get("Answer"):
+            answers = d.get("Answer", [])
+            if answers:
                 return True
-            if st == 3:  # Confirmed NXDOMAIN
+            if st == 3 or (st == 0 and not answers):  # Confirmed NXDOMAIN or NODATA
                 return False
     except Exception:
         pass
@@ -206,24 +207,25 @@ def _check_single_anycast(cand: str, session: Any) -> bool:
         if r.status_code == 200:
             d = r.json()
             st = d.get("Status")
-            if st == 0 or d.get("Answer"):
+            answers = d.get("Answer", [])
+            if answers:
                 return True
-            if st == 3:  # Confirmed NXDOMAIN
+            if st == 3 or (st == 0 and not answers):
                 return False
     except Exception:
         pass
 
-    # In case of any network ambiguity or rate limit, keep candidate to avoid false negatives
-    return True
+    return False
 
 
 def discover_nested_subdomains(
     root_domain: str,
     discovered_hosts: Iterable[str],
-    max_candidates: int = 1200,
+    max_candidates: int = 300,
     max_workers: int = 60,
     dns_resolver: str = "all",
-    log_cb: Optional[Callable[[str], None]] = None
+    log_cb: Optional[Callable[[str], None]] = None,
+    wildcard_info: Optional[Dict[str, Any]] = None
 ) -> Set[str]:
     """
     Executes automated recursive discovery:
@@ -273,12 +275,14 @@ def discover_nested_subdomains(
                         if f.result():
                             surviving_candidates.append(c)
                     except Exception:
-                        surviving_candidates.append(c)
+                        pass
     except Exception:
-        surviving_candidates = candidates
+        surviving_candidates = []
 
     if not surviving_candidates:
-        surviving_candidates = candidates[:150]
+        if log_cb:
+            log_cb("[NESTED] Fast-Path Anycast pre-filter complete: 0 active permutations detected.")
+        return set()
 
     if log_cb:
         log_cb(f"[NESTED-FASTPATH] {len(surviving_candidates)} high-signal candidate(s) advancing to multi-resolver verification...")
@@ -292,6 +296,10 @@ def discover_nested_subdomains(
             try:
                 res = future.result()
                 if res.get("status") == "resolved" and (res.get("ips") or res.get("cname")):
+                    if wildcard_info and wildcard_info.get("is_wildcard"):
+                        from enumerator.wildcard_detector import is_wildcard_false_positive
+                        if is_wildcard_false_positive(res.get("ips", []), res.get("cname", ""), wildcard_info):
+                            continue
                     live_nested.add(cand)
                     if log_cb:
                         resolver = res.get("resolver", "DNS")

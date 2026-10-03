@@ -147,15 +147,24 @@ def generate_permutations(
 
 
 def check_wildcard_for_root(domain: str) -> bool:
-    """Detects if root domain has a wildcard DNS record (*.domain.com)."""
-    probe = f"wildcard-perm-{uuid.uuid4().hex[:12]}.{domain}"
+    """Detects if root domain has a wildcard DNS record (*.domain.com).
+    Uses the robust multi-probe wildcard detector which avoids false positives
+    from ISP captive portals and search redirect DNS.
+    """
     try:
-        socket.getaddrinfo(probe, None)
-        return True
-    except socket.gaierror:
-        return False
+        from enumerator.wildcard_detector import detect_wildcard_dns
+        result = detect_wildcard_dns(domain, num_probes=2, timeout=1.5)
+        return result.get("is_wildcard", False)
     except Exception:
-        return False
+        # Fallback to simple socket probe if wildcard_detector is unavailable
+        probe = f"wildcard-perm-{uuid.uuid4().hex[:12]}.{domain}"
+        try:
+            socket.getaddrinfo(probe, None)
+            return True
+        except socket.gaierror:
+            return False
+        except Exception:
+            return False
 
 
 def scan_permutations(
