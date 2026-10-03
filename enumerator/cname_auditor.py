@@ -2,9 +2,8 @@
 DNS Asset Integrity & Dangling CNAME Auditor.
 Performs defensive auditing of DNS CNAME pointers against known cloud asset signatures
 (AWS S3, GitHub Pages, Heroku, Azure, Shopify, Zendesk, Fastly, etc.) to detect misconfigurations.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re

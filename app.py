@@ -1,9 +1,8 @@
 """
 SubZero - Fast OSINT & Active DNS Reconnaissance Engine
-Developed by: Gulam
 Version: 2.2.0
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 __version__ = "2.2.0"
 
 import atexit
@@ -131,7 +130,7 @@ def _job_view(job, include_results=True, since=0):
     all_logs = job.get('logs', [])
     data = {
         'id': job['id'], 'domain': job['domain'], 'status': job['status'],
-        'developed_by': 'Gulam',
+        'developed_by': 'SubZero Community',
         'progress': job['progress'], 'sources': job['sources'], 'errors': job['errors'],
         'dns_validation': job['dns_validation'], 'active_dns': job.get('active_dns', False),
         'selected_resolver': job.get('selected_resolver', 'all'),
@@ -226,7 +225,7 @@ def _run_scan(job_id, selected):
         total_sources = len(selected) + (1 if active_dns else 0)
         job.update(status='running', progress=f'Querying {total_sources} source(s)')
 
-    _add_log(job, f"[*] SubZero v2.2 • Developed by Gulam Khan")
+    _add_log(job, f"[*] SubZero v2.2 • High-Speed OSINT Engine")
     _add_log(job, f"[*] Starting reconnaissance job for: {job['domain']}")
     _add_log(job, f"[*] Selected engines: {', '.join(selected + (['active-dns'] if active_dns else []))}")
 
@@ -549,8 +548,8 @@ def api_info():
     return jsonify({
         'name': 'SubZero',
         'version': '2.2.0',
-        'author': 'Gulam Khan',
-        'role': 'Founder & Lead Architect',
+        'author': 'SubZero Community',
+        'role': 'Open Source Community',
         'license': 'MIT',
         'repository': 'https://github.com/gulamkhan07/subdomain_finder_pro',
         'status': 'online',
@@ -759,7 +758,7 @@ def results_txt():
     results = _filter_results(job.get('results', []), status_filter, query)
     raw = request.args.get('raw', '').lower() in ('1', 'true', 'yes')
     filter_label = f" ({status_filter.upper()})" if status_filter in ('live', 'dead') else ""
-    header = "" if raw else f"# SubZero • Developed by Gulam Khan\n# Target: {job['domain']} • Total Found{filter_label}: {len(results)}\n\n"
+    header = "" if raw else f"# SubZero • Target: {job['domain']} • Total Found{filter_label}: {len(results)}\n\n"
     body = header + '\n'.join(row['subdomain'] for row in results)
     filename_suffix = f"_{status_filter}" if status_filter in ('live', 'dead') else ""
     return Response(body + ('\n' if body else ''), mimetype='text/plain',
@@ -781,7 +780,7 @@ def results_ips_txt():
     sorted_ips = sorted(all_ips)
     raw = request.args.get('raw', '').lower() in ('1', 'true', 'yes')
     filter_label = f" ({status_filter.upper()})" if status_filter in ('live', 'dead') else ""
-    header = "" if raw else f"# SubZero • Developed by Gulam Khan\n# Target: {job['domain']} • Unique Resolved IPs{filter_label}: {len(sorted_ips)}\n\n"
+    header = "" if raw else f"# SubZero • Target: {job['domain']} • Unique Resolved IPs{filter_label}: {len(sorted_ips)}\n\n"
     body = header + '\n'.join(sorted_ips)
     filename_suffix = f"_{status_filter}" if status_filter in ('live', 'dead') else ""
     return Response(body + ('\n' if body else ''), mimetype='text/plain',
@@ -799,7 +798,7 @@ def results_csv():
     out = io.StringIO(); w = csv.writer(out)
     if not raw:
         filter_note = f' [Filter: {status_filter.upper()}]' if status_filter in ('live', 'dead') else ''
-        w.writerow(['# SubZero', 'Developed by Gulam Khan', f'Target: {job["domain"]}{filter_note}'])
+        w.writerow(['# SubZero', f'Target: {job["domain"]}{filter_note}'])
     w.writerow(['subdomain', 'sources', 'confidence', 'dns', 'primary_ip', 'waf_provider', 'is_origin', 'dns_resolver', 'dns_ips'])
     w.writerows([[
         row['subdomain'],
@@ -1017,13 +1016,13 @@ def results_html():
 def api_history():
     domain = request.args.get('domain')
     scans = get_recent_scans(limit=50, domain=domain)
-    return jsonify(scans=scans, developed_by='Gulam')
+    return jsonify(scans=scans, developed_by='SubZero Community')
 
 
 @app.get('/api/history/<domain>')
 def api_domain_history(domain):
     scans = get_domain_scans(domain)
-    return jsonify(domain=domain, scans=scans, developed_by='Gulam')
+    return jsonify(domain=domain, scans=scans, developed_by='SubZero Community')
 
 
 @app.get('/api/history/diff')
@@ -1159,7 +1158,7 @@ def batch_start():
         'progress': f'Queued {len(valid_targets)} targets',
         'cancelled': False,
         'targets': {},
-        'developed_by': 'Gulam'
+        'developed_by': 'SubZero Community'
     }
     with BATCH_LOCK:
         BATCH_JOBS[batch_id] = batch
@@ -1224,7 +1223,7 @@ def _get_or_restore_batch(batch_id):
                     'total_domains': len(domains),
                     'targets': targets,
                     'cancelled': False,
-                    'developed_by': 'Gulam'
+                    'developed_by': 'SubZero Community'
                 }
                 with BATCH_LOCK:
                     BATCH_JOBS[restored_id] = restored_batch
@@ -1548,7 +1547,7 @@ def api_probe():
     probed = probe_hosts(hosts, max_workers=concurrency, timeout=timeout, specific_resolver=specific_resolver)
     alive_count = sum(1 for p in probed if p.get('alive'))
     return jsonify({
-        'developed_by': 'Gulam',
+        'developed_by': 'SubZero Community',
         'total_probed': len(probed),
         'alive_count': alive_count,
         'results': probed
@@ -1576,7 +1575,7 @@ def api_audit_cname():
     cname_count = sum(1 for r in results if r.get('status') in ('dangling', 'info'))
 
     return jsonify({
-        'developed_by': 'Gulam',
+        'developed_by': 'SubZero Community',
         'total_audited': len(results),
         'dangling_count': dangling_count,
         'cname_count': cname_count,
@@ -1625,7 +1624,7 @@ def api_permutations_generate():
 
     candidates = generate_permutations(domain, seeds, custom_words=custom_words, max_candidates=limit)
     return jsonify({
-        'developed_by': 'Gulam',
+        'developed_by': 'SubZero Community',
         'domain': domain,
         'total_candidates': len(candidates),
         'candidates': candidates
@@ -1780,7 +1779,7 @@ def api_graph_data():
         })
 
     return jsonify({
-        'developed_by': 'Gulam',
+        'developed_by': 'SubZero Community',
         'domain': domain,
         'total_nodes': len(nodes),
         'category_counts': category_counts,
@@ -1838,14 +1837,14 @@ def _is_zip_stale(zip_path: Path, project_dir: Path) -> bool:
 def download_project_zip():
     """Provides instant one-click download of the complete project as a zip file with latest changes."""
     project_dir = Path(__file__).resolve().parent
-    zip_path = project_dir.parent / 'SubZero_Pro_by_Gulam_Khan.zip'
+    zip_path = project_dir.parent / 'SubZero_Pro.zip'
     if _is_zip_stale(zip_path, project_dir):
         _generate_project_zip(zip_path)
     return send_file(
         str(zip_path),
         mimetype='application/zip',
         as_attachment=True,
-        download_name='SubZero_Pro_by_Gulam_Khan.zip'
+        download_name='SubZero_Pro.zip'
     )
 
 

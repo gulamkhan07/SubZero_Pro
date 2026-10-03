@@ -3,9 +3,8 @@ Direct TLS SAN (Subject Alternative Name) Certificate Scraper.
 Connects to port 443 across discovered IP addresses and hosts, extracts
 X.509 SSL/TLS certificates, and extracts hidden subdomains from the SAN extension
 without relying on any external 3rd-party APIs.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re

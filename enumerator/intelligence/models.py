@@ -1,6 +1,5 @@
 """
 Data models and type definitions for SubZero Dynamic Intelligence Engine.
-Developed by: Gulam Khan
 """
 from dataclasses import dataclass, field
 from enum import Enum

@@ -2,9 +2,8 @@
 DNS Wildcard Detection & False-Positive Filter.
 Detects if a domain utilizes wildcard DNS records (*.domain.com) and filters out
 bogus subdomains that only resolve to catch-all wildcard IP addresses.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 import random
 import socket

@@ -2,9 +2,8 @@
 DNS Zone Transfer (AXFR) Pre-Flight Auditor for SubZero
 Audits authoritative nameservers for DNS Zone Transfer misconfigurations (RFC 5936).
 If a zone transfer is allowed, 100% of internal and external DNS records are extracted instantly.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -59,7 +58,7 @@ def check_zone_transfer(
     root = domain.strip().lower().rstrip('.')
     if not valid_domain(root):
         return {
-            'developed_by': 'Gulam',
+            'developed_by': 'SubZero Community',
             'domain': root,
             'is_vulnerable': False,
             'vulnerable': False,
@@ -82,7 +81,7 @@ def check_zone_transfer(
         ns_hosts = sorted({str(r.target).rstrip('.').lower() for r in ns_ans})
     except Exception as exc:
         return {
-            'developed_by': 'Gulam',
+            'developed_by': 'SubZero Community',
             'domain': root,
             'is_vulnerable': False,
             'vulnerable': False,
@@ -110,7 +109,7 @@ def check_zone_transfer(
 
     if not targets_to_probe:
         return {
-            'developed_by': 'Gulam',
+            'developed_by': 'SubZero Community',
             'domain': root,
             'is_vulnerable': False,
             'vulnerable': False,
@@ -150,7 +149,7 @@ def check_zone_transfer(
 
     all_subs = sorted(discovered_subdomains)
     return {
-        'developed_by': 'Gulam',
+        'developed_by': 'SubZero Community',
         'domain': root,
         'is_vulnerable': is_vulnerable,
         'vulnerable': is_vulnerable,

@@ -2,9 +2,8 @@
 Nested & Recursive Subdomain Discovery Engine for SubZero
 Specialized in multi-tenant, cloud-native, and multi-level (depth 2-5)
 subdomain reconnaissance without requiring paid API subscriptions.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 import re
 from collections import Counter

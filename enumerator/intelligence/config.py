@@ -1,6 +1,5 @@
 """
 Configuration management for SubZero Dynamic Intelligence Engine.
-Developed by: Gulam Khan
 """
 import os
 from dataclasses import dataclass

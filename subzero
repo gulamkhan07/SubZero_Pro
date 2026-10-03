@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SubZero CLI Fast Launcher for Linux / macOS
-# Developed by: Gulam Khan
+# Open Source Community Edition
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

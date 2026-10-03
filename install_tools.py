@@ -2,7 +2,6 @@
 """
 Cross-Platform Auto-Installer script for Subfinder, Amass & SecLists Wordlists.
 Supports Windows, Linux, and macOS (x86_64 and arm64).
-Developed by: Gulam Khan
 """
 import io
 import os

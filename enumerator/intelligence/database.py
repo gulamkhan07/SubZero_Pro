@@ -1,7 +1,6 @@
 """
 Intelligence Database & In-Memory CIDR Lookup Engine.
 Loads Last-Known-Good (LKG) datasets and overlays dynamic cached feeds.
-Developed by: Gulam Khan
 """
 import ipaddress
 import json

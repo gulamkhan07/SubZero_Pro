@@ -86,9 +86,9 @@ To add a new passive OSINT source:
 
 ## 🏆 Attribution & Recognition
 
-SubZero was created and is led by **Gulam Khan**. 
+SubZero is an open-source project maintained by the security community.
 
-- Core copyright and project ownership remain under the [MIT License](LICENSE) by Gulam Khan.
+- Core copyright and project ownership remain under the [MIT License](LICENSE).
 - We believe in celebrating everyone who contributes! Once your pull request is merged, you are invited to add your name, GitHub handle, and contribution description to [`CONTRIBUTORS.md`](CONTRIBUTORS.md).
 
 ---

@@ -21,8 +21,8 @@ Only the latest release of SubZero receives security patches and updates.
 
 Instead, please report security vulnerabilities privately:
 1. **GitHub Private Vulnerability Reporting**: Use the "Report a vulnerability" button under the **Security** tab of the GitHub repository.
-2. **Contact**: Reach out directly to the project creator:
-   - **Lead Maintainer**: **Gulam Khan**
+2. **Contact**: Reach out directly to the project security maintainers:
+   - **Maintainers**: **SubZero Security Team**
    - **Subject Line**: `[SECURITY] SubZero Vulnerability Report`
 
 ### What to Include in Your Report

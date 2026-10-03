@@ -1,6 +1,5 @@
 """
 SubZero Dynamic Intelligence Subsystem.
-Developed by: Gulam Khan
 """
 from enumerator.intelligence.config import GLOBAL_CONFIG, IntelligenceConfig
 from enumerator.intelligence.models import (

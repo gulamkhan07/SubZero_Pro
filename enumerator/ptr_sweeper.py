@@ -3,9 +3,8 @@ Reverse DNS (PTR) Subnet Sweeping Engine.
 Takes discovered Origin IP addresses, groups them into /24 network subnets,
 and performs concurrent reverse DNS lookups to uncover internal, unlisted,
 and staging subdomains sharing the same infrastructure.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import ipaddress

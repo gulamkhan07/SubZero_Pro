@@ -1,6 +1,5 @@
 """
 Unit tests for Subdomain Permutation Engine.
-Developed by: Gulam
 """
 import unittest
 from enumerator.permutation_engine import generate_permutations, scan_permutations
@@ -37,7 +36,7 @@ class TestPermutationEngine(unittest.TestCase):
         self.assertIn("total_candidates", res)
         self.assertIn("total_live", res)
         self.assertIn("results", res)
-        self.assertEqual(res["developed_by"], "Gulam")
+        self.assertEqual(res["developed_by"], "SubZero Community")
 
 
 if __name__ == '__main__':

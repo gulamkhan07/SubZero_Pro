@@ -5,9 +5,8 @@ AdGuard, Control D, Level3, and local OS resolver) to definitively determine whe
 a domain is live or dead.
 A domain is declared LIVE if ANY resolver responds with an A, AAAA, or CNAME record.
 A domain is declared DEAD ONLY after ALL configured resolvers have failed.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 import atexit
 from concurrent.futures import ThreadPoolExecutor, as_completed

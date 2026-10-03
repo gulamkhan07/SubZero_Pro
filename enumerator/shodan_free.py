@@ -3,9 +3,8 @@ Shodan Free InternetDB Subdomain Harvester for SubZero
 Extracts exclusively subdomains from Shodan's free, public
 InternetDB API (https://internetdb.shodan.io/) without any paid keys,
 ignoring open ports, vulnerabilities, and irrelevant metadata.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, Iterable, List, Optional, Set

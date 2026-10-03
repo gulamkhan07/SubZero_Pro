@@ -4,7 +4,7 @@ cd "$(dirname "$0")"
 
 echo "========================================================"
 echo "    SubZero v2.2 - OSINT & DNS Reconnaissance Platform"
-echo "    Developed by: Gulam Khan"
+echo "    Open Source Community Edition"
 echo "========================================================"
 echo ""
 

@@ -1,7 +1,6 @@
 """
 Central Provider Registry for SubZero Reconnaissance Engine.
 Catalogs all supported WAF, CDN, Sovereign Cloud, and Origin Hosting providers.
-Developed by: Gulam Khan
 """
 from typing import Dict, List, Optional
 from enumerator.intelligence.models import (

@@ -3,7 +3,6 @@ Evidence-Based Correlation Engine for SubZero.
 Combines CIDR network matching, ASN ownership, CNAME signatures, and HTTP fingerprints.
 Enforces evidence hierarchy: HTTP > CNAME > CIDR > ASN > RDAP.
 Distinguishes Network Provider from WAF Confirmation, and Unknown from Direct Origin.
-Developed by: Gulam Khan
 """
 from functools import lru_cache
 import logging

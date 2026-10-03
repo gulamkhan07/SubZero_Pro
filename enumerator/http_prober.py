@@ -3,9 +3,8 @@ On-Demand Live HTTP / Web Service Status & Enterprise WAF Prober.
 Strictly decoupled from pure DNS discovery. Checks live status codes, server headers,
 WAF signatures (Cloudflare, AWS, Azure, Google Cloud Armor, Akamai, F5, Imperva, etc.),
 titles, and latency.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re

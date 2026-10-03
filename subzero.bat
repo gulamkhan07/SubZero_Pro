@@ -4,11 +4,11 @@ setlocal enabledelayedexpansion
 :: ============================================================================
 :: SubZero CLI - Windows Portable Launcher
 :: High-Speed OSINT & DNS Reconnaissance Engine
-:: Developed by: Gulam Khan
+:: Open Source Community Edition
 :: Version: 2.2.0
 :: ============================================================================
 
-title SubZero - by Gulam Khan
+title SubZero - OSINT & DNS Reconnaissance Platform
 
 :: ----------------------------------------------------------------------------
 :: 1. ENVIRONMENT CONFIGURATION & PATHS

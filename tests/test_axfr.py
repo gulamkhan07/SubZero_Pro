@@ -1,6 +1,5 @@
 """
 Unit tests for DNS Zone Transfer (AXFR) Pre-Flight Auditor and API Endpoint.
-Developed by: Gulam
 """
 import unittest
 from unittest.mock import patch, Mock, MagicMock
@@ -78,7 +77,7 @@ class TestAXFRAuditor(unittest.TestCase):
     @patch('app.check_zone_transfer')
     def test_api_audit_axfr_endpoint(self, mock_check):
         mock_check.return_value = {
-            'developed_by': 'Gulam',
+            'developed_by': 'SubZero Community',
             'domain': 'target.com',
             'is_vulnerable': True,
             'vulnerable': True,

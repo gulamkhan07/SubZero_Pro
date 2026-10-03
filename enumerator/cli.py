@@ -1,9 +1,8 @@
 """
 SubZero CLI - Advanced OSINT & Active Reconnaissance Platform
 Terminal Command Line Interface for Cybersecurity Professionals.
-Developed by: Gulam Khan
 """
-__author__ = "Gulam Khan"
+__author__ = "SubZero Community"
 __version__ = "2.2.0"
 
 import argparse
@@ -75,7 +74,7 @@ BANNER = r"""
   ███████║╚██████╔╝██████╔╝███████╗███████╗██║  ██║╚██████╔╝
   ╚══════╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ 
      Next-Gen OSINT & DNS Reconnaissance • CLI Edition
-     Developed by Gulam Khan | Fast • Resilient • Pipeable
+     Fast • Resilient • Pipeable • Open Source
 """
 
 
@@ -513,7 +512,7 @@ def write_outputs(
         export_payload = {
             'target': scan_data.get('domain'),
             'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'author': 'Gulam Khan',
+            'author': 'SubZero Community',
             'elapsed_seconds': scan_data.get('elapsed'),
             'total_subdomains': len(results),
             'subdomains': [r['subdomain'] for r in results],
@@ -611,7 +610,7 @@ def display_terminal_summary(scan_data: Dict[str, Any], only_resolved: bool = Fa
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="subzero",
-        description="SubZero — Next-Gen OSINT & Active Reconnaissance Platform (CLI Edition) by Gulam Khan",
+        description="SubZero — Next-Gen OSINT & Active Reconnaissance Platform (CLI Edition)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
   subzero -d example.com -silent
@@ -716,7 +715,7 @@ def run_interactive_wizard():
     print_banner(silent=False)
     sys.stderr.write(f"\n{Colors.BOLD}{Colors.GREEN}══════════════════════════════════════════════════════════════════════{Colors.RESET}\n")
     sys.stderr.write(f"  {Colors.BOLD}⚡ SubZero Interactive Cyber Recon Wizard{Colors.RESET}\n")
-    sys.stderr.write(f"  Developed by Gulam Khan — Configure tools & scan targets easily\n")
+    sys.stderr.write(f"  Interactive Wizard — Configure tools & scan targets easily\n")
     sys.stderr.write(f"{Colors.BOLD}{Colors.GREEN}══════════════════════════════════════════════════════════════════════{Colors.RESET}\n\n")
     sys.stderr.flush()
 

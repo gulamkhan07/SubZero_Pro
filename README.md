@@ -10,27 +10,19 @@
 </p>
 
 > **Enterprise-Grade OSINT Reconnaissance, Multi-Resolver DNS Integrity, Permutations Engine, Wayback URL Miner & Cloud Asset Auditor.**  
-> **Designed & Developed by: Gulam Khan**  
+> **Open Source Community Platform**  
 > **Version: 2.2.0 (High-Performance & Low-Spec PC Calibrated)**  
 > 📖 **[CLI Commands Reference & Cheat Sheet](COMMANDS.md)**
 
 ---
 
-## 👨‍💻 Creator & Lead Architect
+## 👥 Community & Contributions
 
-<table>
-  <tr>
-    <td>
-      <h3>Gulam Khan</h3>
-      <p><b>Founder & Lead Architect</b> of SubZero</p>
-      <p>
-        <a href="https://github.com/gulamkhan07"><img src="https://img.shields.io/badge/GitHub-Profile-181717?style=flat&logo=github" alt="GitHub"></a>
-        <a href="https://linkedin.com/"><img src="https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=flat&logo=linkedin" alt="LinkedIn"></a>
-      </p>
-      <p><i>Passionate about high-performance cybersecurity tooling, passive reconnaissance, and decentralized OSINT engineering.</i></p>
-    </td>
-  </tr>
-</table>
+SubZero is an open-source cybersecurity project maintained by the community. We welcome contributions, bug fixes, engine integrations, and documentation improvements.
+
+- 📖 Review our [Contributing Guidelines](CONTRIBUTING.md)
+- 🏆 See our [Contributors Hall of Fame](CONTRIBUTORS.md)
+- 🛡️ View our [Security Policy](SECURITY.md)
 
 ---
 
@@ -316,11 +308,11 @@ We warmly welcome contributions from bug bounty hunters, security researchers, a
 
 > [!WARNING]
 > **SubZero is designed for educational, defensive security auditing, and authorized penetration testing purposes only.**  
-> Usage of SubZero for scanning targets without prior mutual consent is strictly illegal. The developer (**Gulam Khan**) and contributors assume no liability and are not responsible for any misuse, damage, or legal consequences caused by this program. Always obtain proper authorization before assessing external infrastructure.
+> Usage of SubZero for scanning targets without prior mutual consent is strictly illegal. The developers and contributors assume no liability and are not responsible for any misuse, damage, or legal consequences caused by this program. Always obtain proper authorization before assessing external infrastructure.
 
 ---
 
 ## 📄 License
 This project is open-source software licensed under the **[MIT License](LICENSE)**.  
-Copyright (c) 2026 **Gulam Khan**. All rights reserved.
+Copyright (c) 2026 **SubZero Contributors**. All rights reserved.
 

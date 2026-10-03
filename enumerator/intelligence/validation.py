@@ -1,7 +1,6 @@
 """
 Feed validation and sanity checking for downloaded provider datasets.
 Prevents corrupted, truncated, or catastrophic drops from replacing trusted data.
-Developed by: Gulam Khan
 """
 import ipaddress
 import logging

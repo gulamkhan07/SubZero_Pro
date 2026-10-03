@@ -1,9 +1,8 @@
 """
 Scan History & Diff Change Tracking Store.
 Maintains persistent timeline of subdomain scans and calculates delta additions/removals.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 import json
 import os

@@ -3,9 +3,8 @@ Confirmed "True Origin IP" (WAF Bypass) Active Verification Engine.
 Actively sends HTTP and HTTPS probes directly to suspected Origin IP addresses
 with 'Host: <target_domain>' headers to verify if the server serves the
 backend web application, confirming a 100% genuine WAF bypass vulnerability.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re

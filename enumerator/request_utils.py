@@ -1,9 +1,8 @@
 """
 Shared HTTP Request Utilities with Rate Limiting & Retry Logic.
 Provides exponential backoff with jitter, session pooling, and per-provider throttling.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 import random
 import time

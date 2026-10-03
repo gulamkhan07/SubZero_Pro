@@ -3,9 +3,8 @@ IP Intelligence & Cloud WAF vs. Direct Origin IP Detector.
 Performs high-speed local CIDR network matching (IPv4 and IPv6), CNAME
 fingerprinting, and HTTP header analysis to distinguish between CDN/WAF-protected
 subdomains and direct Origin server IPs (WAF bypass targets).
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 import ipaddress
 from functools import lru_cache

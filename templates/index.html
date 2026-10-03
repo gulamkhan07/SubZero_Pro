@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="author" content="Gulam Khan">
-  <meta name="description" content="SubZero - Enterprise OSINT Reconnaissance, Multi-Domain Batch Scanner, History Diff & Live Prober Developed by Gulam Khan">
-  <title>SubZero — OSINT & Reconnaissance Platform (by Gulam Khan)</title>
+  <meta name="author" content="SubZero Project">
+  <meta name="description" content="SubZero - Enterprise OSINT Reconnaissance, Multi-Domain Batch Scanner, History Diff & Live Prober">
+  <title>SubZero — OSINT & Reconnaissance Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -44,7 +44,7 @@
             <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
             <span class="nav-title">CNAME Auditor</span>
           </button>
-          <a href="/api/download/zip" class="nav-tab nav-tab-download" download="SubZero_Pro_by_Gulam_Khan.zip" title="Download Complete Project ZIP (Portable & Ready-to-Run)" style="text-decoration: none; margin-left: auto;">
+          <a href="/api/download/zip" class="nav-tab nav-tab-download" download="SubZero_Pro.zip" title="Download Complete Project ZIP (Portable & Ready-to-Run)" style="text-decoration: none; margin-left: auto;">
             <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
             <span class="nav-title">Download ZIP</span>
           </a>
@@ -69,7 +69,7 @@
           <div class="brand-right">
             <div class="developer-pill">
               <span class="dev-badge-dot"></span>
-              <span class="dev-text">Developed by <strong class="dev-author">Gulam Khan</strong></span>
+              <span class="dev-text">Open Source <strong class="dev-author">Community Edition</strong></span>
             </div>
             <div class="hud-status-badge">
               <span class="hud-icon">⚡</span>
@@ -287,7 +287,7 @@
             </div>
           </div>
           <div id="terminal-body" class="terminal-body">
-            <div class="terminal-line log-info">[00:00:00] SubZero v2.2 • Developed by Gulam Khan</div>
+            <div class="terminal-line log-info">[00:00:00] SubZero v2.2 • High-Speed OSINT Engine Ready</div>
             <div class="terminal-line muted-line">[00:00:00] Backend ready. Specifically streaming Active DNS brute-force queries (#0001, #0002...) live here...</div>
           </div>
         </div>
@@ -457,7 +457,7 @@
           <div class="brand-right">
             <div class="developer-pill">
               <span class="dev-badge-dot"></span>
-              <span class="dev-text">Developed by <strong class="dev-author">Gulam Khan</strong></span>
+              <span class="dev-text">Open Source <strong class="dev-author">Community Edition</strong></span>
             </div>
           </div>
         </div>
@@ -850,7 +850,7 @@
           <div class="brand-right">
             <div class="developer-pill">
               <span class="dev-badge-dot"></span>
-              <span class="dev-text">Developed by <strong class="dev-author">Gulam Khan</strong></span>
+              <span class="dev-text">Open Source <strong class="dev-author">Community Edition</strong></span>
             </div>
           </div>
         </div>
@@ -951,7 +951,7 @@
           <div class="brand-right">
             <div class="developer-pill">
               <span class="dev-badge-dot"></span>
-              <span class="dev-text">Developed by <strong class="dev-author">Gulam Khan</strong></span>
+              <span class="dev-text">Open Source <strong class="dev-author">Community Edition</strong></span>
             </div>
           </div>
         </div>
@@ -1062,7 +1062,7 @@
           <div class="brand-right">
             <div class="developer-pill">
               <span class="dev-badge-dot"></span>
-              <span class="dev-text">Developed by <strong class="dev-author">Gulam Khan</strong></span>
+              <span class="dev-text">Open Source <strong class="dev-author">Community Edition</strong></span>
             </div>
           </div>
         </div>
@@ -1155,7 +1155,7 @@
           <div class="brand-right">
             <div class="developer-pill">
               <span class="dev-badge-dot"></span>
-              <span class="dev-text">Developed by <strong class="dev-author">Gulam Khan</strong></span>
+              <span class="dev-text">Open Source <strong class="dev-author">Community Edition</strong></span>
             </div>
           </div>
         </div>
@@ -1249,7 +1249,7 @@
           <span class="footer-title">SUBZERO v2.2</span>
         </div>
         <div class="footer-dev">
-          Designed & Developed by <strong class="author-name">Gulam Khan</strong>
+          Free &amp; Open Source OSINT Reconnaissance Platform
         </div>
         <div class="footer-copy">
           Pure High-Speed OSINT & Multi-Threaded DNS Reconnaissance
@@ -2429,7 +2429,7 @@
 
       if (linkId === 'link-txt') {
         const filterLabel = currentStatusFilter !== 'all' ? ` (${currentStatusFilter.toUpperCase()})` : '';
-        const header = `# SubZero • Developed by Gulam Khan\n# Target: ${targetDomain} • Total Found${filterLabel}: ${filtered.length}\n\n`;
+        const header = `# SubZero • Target: ${targetDomain} • Total Found${filterLabel}: ${filtered.length}\n\n`;
         const body = header + filtered.map(r => r.subdomain).join('\n') + '\n';
         const blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
         triggerDownloadBlob(blob, `${targetDomain}${suffix}_subdomains.txt`);
@@ -2437,7 +2437,7 @@
         const headers = ['subdomain', 'sources', 'confidence', 'dns', 'primary_ip', 'waf_provider', 'is_origin', 'dns_resolver', 'dns_ips'];
         const filterNote = currentStatusFilter !== 'all' ? ` [Filter: ${currentStatusFilter.toUpperCase()}]` : '';
         const rows = [
-          `"# SubZero","Developed by Gulam Khan","Target: ${targetDomain}${filterNote}"`,
+          `"# SubZero","Target: ${targetDomain}${filterNote}"`,
           headers.join(',')
         ];
         filtered.forEach(r => {
@@ -2471,7 +2471,7 @@
         });
         const sortedIps = Array.from(allIps).sort();
         const filterLabel = currentStatusFilter !== 'all' ? ` (${currentStatusFilter.toUpperCase()})` : '';
-        const header = `# SubZero • Developed by Gulam Khan\n# Target: ${targetDomain} • Unique Resolved IPs${filterLabel}: ${sortedIps.length}\n\n`;
+        const header = `# SubZero • Target: ${targetDomain} • Unique Resolved IPs${filterLabel}: ${sortedIps.length}\n\n`;
         const body = header + sortedIps.join('\n') + '\n';
         const blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
         triggerDownloadBlob(blob, `${targetDomain}${suffix}_unique_ips.txt`);

@@ -4,15 +4,15 @@ setlocal enabledelayedexpansion
 :: ============================================================================
 :: SubZero Web Platform - Windows Launcher
 :: Enterprise OSINT Reconnaissance, DNS Integrity & Attack Surface Auditor
-:: Developed by: Gulam Khan
+:: Open Source Community Edition
 :: Version: 2.2.0
 :: ============================================================================
 
-title SubZero - by Gulam Khan
+title SubZero - OSINT & DNS Reconnaissance Platform
 
 echo ============================================================================
 echo     SubZero v2.2 - OSINT ^& DNS Reconnaissance Platform
-echo     Developed by: Gulam Khan
+echo     Open Source Community Edition
 echo ============================================================================
 echo.
 

@@ -287,10 +287,10 @@ class RequirementChecks(unittest.TestCase):
         test_job_id = 'test-job-report-123'
         JOBS[test_job_id] = {
             'id': test_job_id,
-            'domain': 'testgulam.com',
+            'domain': 'testsubzero.com',
             'status': 'completed',
             'results': [
-                {'subdomain': 'vpn.testgulam.com', 'sources': ['crtsh', 'subfinder'], 'confidence': 'high', 'dns': 'resolved'}
+                {'subdomain': 'vpn.testsubzero.com', 'sources': ['crtsh', 'subfinder'], 'confidence': 'high', 'dns': 'resolved'}
             ],
             'sources': {'crtsh': 1, 'subfinder': 1},
             'cached': False
@@ -301,9 +301,10 @@ class RequirementChecks(unittest.TestCase):
             self.assertEqual(resp.status_code, 200)
             self.assertIn('text/html', resp.content_type)
             html_text = resp.get_data(as_text=True)
-            self.assertIn('Developed by Gulam', html_text)
-            self.assertIn('vpn.testgulam.com', html_text)
-            self.assertIn('testgulam.com', html_text)
+            self.assertIn('SubZero', html_text)
+            self.assertNotIn('Developed by Gulam', html_text)
+            self.assertIn('vpn.testsubzero.com', html_text)
+            self.assertIn('testsubzero.com', html_text)
 
 
     def test_cname_auditor_detects_dangling_service(self):
@@ -340,7 +341,7 @@ class RequirementChecks(unittest.TestCase):
             self.assertEqual(resp.status_code, 200)
             data = resp.get_json()
             self.assertEqual(data['domain'], 'example.com')
-            self.assertEqual(data['developed_by'], 'Gulam')
+            self.assertEqual(data['developed_by'], 'SubZero Community')
             cats = data['category_counts']
             self.assertGreaterEqual(cats['api'], 1)
             self.assertGreaterEqual(cats['dev'], 1)
@@ -357,7 +358,7 @@ class RequirementChecks(unittest.TestCase):
             data = resp.get_json()
             self.assertEqual(data['name'], 'SubZero')
             self.assertEqual(data['version'], '2.2.0')
-            self.assertEqual(data['author'], 'Gulam Khan')
+            self.assertEqual(data['author'], 'SubZero Community')
             self.assertEqual(data['license'], 'MIT')
             self.assertEqual(data['status'], 'online')
 

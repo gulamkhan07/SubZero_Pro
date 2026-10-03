@@ -1,7 +1,7 @@
 # ⚡ SubZero CLI: Complete Commands & Cheat Sheet Guide
 
 > **Official Command-Line Interface (CLI) Manual & Quick Reference Guide**  
-> **Platform: SubZero v2.2.0 • Developed by Gulam Khan**
+> **Platform: SubZero v2.2.0 • Open Source Reconnaissance Platform**
 
 ---
 
@@ -315,4 +315,4 @@ subzero.bat --update-intel
    ```
 
 ---
-*Created with ❤️ by **Gulam Khan** for Cybersecurity Researchers & Ethical Hackers.*
+*Maintained with ❤️ by the **SubZero Community** for Cybersecurity Researchers & Ethical Hackers.*

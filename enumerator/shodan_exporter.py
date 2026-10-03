@@ -2,7 +2,6 @@
 Shodan Domain & DNS API 1:1 Schema Exporter for SubZero.
 Generates an exact 1:1 identical JSON schema matching Shodan's Domain endpoint
 (https://api.shodan.io/dns/domain/{domain}).
-Developed by: Gulam Khan
 """
 import datetime
 import ipaddress

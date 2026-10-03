@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 SubZero - Fast OSINT & Active DNS Reconnaissance Engine (CLI Edition)
-Developed by: Gulam Khan
 Version: 2.2.0
 
 Usage:

@@ -2,7 +2,6 @@
 Dynamic Intelligence Updater & Feed Adapters.
 Refreshes provider network ranges using official machine-readable feeds.
 Maintains ETag, Last-Modified, versioning, change detection, and Last-Known-Good fallback.
-Developed by: Gulam Khan
 """
 import datetime
 import ipaddress

@@ -2,9 +2,8 @@
 Subdomain Permutation & Mutation Engine.
 Generates intelligent candidate mutations and permutations based on discovered seed subdomains
 and resolves them using multi-resolver DNS to uncover hidden development, staging, and internal assets.
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 import re
 import socket
@@ -187,7 +186,7 @@ def scan_permutations(
 
     if not candidates:
         return {
-            "developed_by": "Gulam",
+            "developed_by": "SubZero Community",
             "domain": domain,
             "is_wildcard": is_wildcard,
             "total_candidates": 0,
@@ -228,7 +227,7 @@ def scan_permutations(
     results.sort(key=lambda x: (not x["alive"], x["host"]))
 
     return {
-        "developed_by": "Gulam",
+        "developed_by": "SubZero Community",
         "domain": domain,
         "is_wildcard": is_wildcard,
         "total_candidates": total_candidates,

@@ -3,7 +3,6 @@ Comprehensive unit test suite for SubZero Dynamic Intelligence Subsystem.
 Tests updater adapters, validation, catastrophic drop rejection, Last-Known-Good preservation,
 evidence-based correlation, multi-IP resolution, redirect handling, and origin verification.
 ZERO external network dependencies (all tests use local fixtures and mocks).
-Developed by: Gulam Khan
 """
 import unittest
 from unittest.mock import MagicMock, Mock, patch

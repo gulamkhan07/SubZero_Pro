@@ -2,9 +2,8 @@
 Active Subdomain Discovery Module.
 Performs ultra-high-speed concurrent DNS wordlist brute-forcing with wildcard DNS detection.
 Optimized with pure asyncio and dnspython for massive throughput (Open-Source Friendly).
-Developed by: Gulam Khan
 """
-__author__ = "Gulam Khan"
+__author__ = "SubZero Community"
 
 import os
 import time

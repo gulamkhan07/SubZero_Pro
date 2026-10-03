@@ -2,7 +2,6 @@
 ASN and RDAP Intelligence & Enrichment Layer.
 Provides network ownership signals without equating ASN ownership to WAF confirmation.
 Caches lookups per-IP and handles conflicts and graceful failure.
-Developed by: Gulam Khan
 """
 from functools import lru_cache
 import logging

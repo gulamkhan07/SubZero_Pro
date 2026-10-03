@@ -1,8 +1,7 @@
 """
 Passive Subdomain Reconnaissance Providers
-Developed by: Gulam
 """
-__author__ = "Gulam"
+__author__ = "SubZero Community"
 
 import os
 import re
