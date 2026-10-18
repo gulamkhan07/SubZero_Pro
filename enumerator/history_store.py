@@ -52,24 +52,29 @@ def init_db():
             conn.execute('ALTER TABLE scan_history ADD COLUMN results_json TEXT;')
         except Exception:
             pass
+        try:
+            conn.execute('ALTER TABLE scan_history ADD COLUMN main_domain_json TEXT;')
+        except Exception:
+            pass
         conn.execute('CREATE INDEX IF NOT EXISTS idx_domain ON scan_history(domain)')
         conn.execute('CREATE INDEX IF NOT EXISTS idx_timestamp ON scan_history(timestamp DESC)')
 
 
-def save_scan_history(job_id: str, domain: str, results: list, sources: dict):
+def save_scan_history(job_id: str, domain: str, results: list, sources: dict, main_domain: dict = None):
     init_db()
     ts = time.time()
     formatted = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ts))
     subdomains = [r.get('subdomain', '') if isinstance(r, dict) else str(r) for r in results]
     subdomains = sorted(set(s for s in subdomains if s))
     results_json = json.dumps(results if isinstance(results, list) else [])
+    main_domain_json = json.dumps(main_domain if isinstance(main_domain, dict) else {})
 
     try:
         with _get_conn() as conn:
             conn.execute('''
                 INSERT OR REPLACE INTO scan_history
-                (id, domain, timestamp, formatted_date, count, sources_json, subdomains_json, results_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (id, domain, timestamp, formatted_date, count, sources_json, subdomains_json, results_json, main_domain_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 job_id,
                 domain.strip().lower().rstrip('.'),
@@ -78,7 +83,8 @@ def save_scan_history(job_id: str, domain: str, results: list, sources: dict):
                 len(subdomains),
                 json.dumps(sources or {}),
                 json.dumps(subdomains),
-                results_json
+                results_json,
+                main_domain_json
             ))
     except Exception as e:
         print(f"[!] Warning: Failed to save scan history: {e}", flush=True)
@@ -176,4 +182,26 @@ def compute_diff(old_scan_id: str, new_scan_id: str) -> dict:
             }
     except Exception as e:
         return {'error': f'Diff computation failed: {e}'}
+
+
+def prune_old_history(max_age_days: int = 90, max_rows: int = 500) -> int:
+    """Prune scan history older than max_age_days, keeping at most max_rows."""
+    init_db()
+    cutoff = time.time() - (max_age_days * 86400)
+    try:
+        with _get_conn() as conn:
+            cur1 = conn.execute('DELETE FROM scan_history WHERE timestamp < ?', (cutoff,))
+            deleted = cur1.rowcount if cur1.rowcount > 0 else 0
+            cur2 = conn.execute('''
+                DELETE FROM scan_history WHERE id NOT IN (
+                    SELECT id FROM scan_history ORDER BY timestamp DESC LIMIT ?
+                )
+            ''', (int(max_rows),))
+            if cur2.rowcount > 0:
+                deleted += cur2.rowcount
+            return deleted
+    except Exception as e:
+        print(f"[!] Warning: Failed to prune scan history: {e}", flush=True)
+        return 0
+
 

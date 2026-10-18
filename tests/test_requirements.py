@@ -126,7 +126,7 @@ class RequirementChecks(unittest.TestCase):
 
             # Wait for background job to finish
             data = {}
-            for _ in range(100):
+            for _ in range(200):
                 res = client.get(f'/api/scan/{job_id}')
                 data = res.get_json()
                 if data.get('status') == 'completed':

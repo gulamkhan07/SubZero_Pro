@@ -305,6 +305,29 @@ class TestSubZeroCLI(unittest.TestCase):
         self.assertEqual(data['sources'].get('active-dns'), 2)
         self.assertEqual(data['errors'], [])
 
+    @patch('enumerator.cli.dns_brute_force')
+    def test_cli_scan_active_dns_rate_limit(self, mock_dns_brute):
+        mock_dns_brute.return_value = (['brute1.example.com'], None, 1)
+        data = run_cli_scan(
+            domain="example.com",
+            sources=[],
+            active_dns=True,
+            wordlist_size="1000",
+            active_threads=200,
+            rate_limit=100,
+            silent=True
+        )
+        mock_dns_brute.assert_called_once_with(
+            domain="example.com",
+            wordlist=None,
+            max_workers=200,
+            wordlist_size="1000",
+            log_callback=None,
+            verbose=False,
+            rate_limit=100
+        )
+        self.assertIn('brute1.example.com', data['subdomains'])
+
     @patch('enumerator.cli.scan_permutations')
     def test_cli_scan_permutations_integration(self, mock_scan_perm):
         mock_scan_perm.return_value = {

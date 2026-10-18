@@ -201,7 +201,68 @@ class TestAdvancedFeatures(unittest.TestCase):
         self.assertEqual(results[0]['primary_ip'], '34.205.12.5')
         self.assertTrue(results[0]['is_origin'])
 
+    # -----------------------------------------------------------------------
+    # 7. Project Metadata & Database History Pruning
+    # -----------------------------------------------------------------------
+    def test_project_meta_constant(self):
+        from app import PROJECT_META
+        self.assertIn('developed_by', PROJECT_META)
+        self.assertIn('version', PROJECT_META)
+        self.assertEqual(PROJECT_META['developed_by'], 'SubZero Community')
+
+    def test_prune_old_history_executes(self):
+        from enumerator.history_store import prune_old_history, save_scan_history
+        # Save a mock scan record
+        save_scan_history('test-prune-id', 'test.com', [{'subdomain': 'a.test.com'}], {'crtsh': 1})
+        pruned = prune_old_history(max_age_days=0, max_rows=0)
+        self.assertGreaterEqual(pruned, 0)
+
+    def test_timeout_adapter_sets_default(self):
+        from enumerator.request_utils import _TimeoutAdapter
+        adapter = _TimeoutAdapter(timeout=12)
+        self.assertEqual(adapter.timeout, 12)
+
+    # -----------------------------------------------------------------------
+    # 8. HTTP Prober Rate Limiter, Jitter & Adaptive Cooldown
+    # -----------------------------------------------------------------------
+    def test_http_rate_limiter_acquire_and_jitter(self):
+        from enumerator.http_prober import _HttpRateLimiter
+        import time
+        limiter = _HttpRateLimiter(rate=50.0, jitter=True)
+        t0 = time.monotonic()
+        limiter.acquire()
+        limiter.acquire()
+        elapsed = time.monotonic() - t0
+        self.assertGreater(elapsed, 0.005)
+
+    def test_http_rate_limiter_adaptive_cooldown(self):
+        from enumerator.http_prober import _HttpRateLimiter
+        import time
+        limiter = _HttpRateLimiter(rate=100.0, jitter=False, cooldown_seconds=0.15)
+        self.assertEqual(limiter._backoff_count, 0)
+        limiter.report_throttle()
+        self.assertGreater(limiter._backoff_count, 0)
+        self.assertGreater(limiter._cooldown_until, time.monotonic())
+        t0 = time.monotonic()
+        limiter.acquire()
+        self.assertGreaterEqual(time.monotonic() - t0, 0.10)
+
+    @patch('enumerator.http_prober.requests.get')
+    def test_probe_hosts_with_rate_limit(self, mock_get):
+        from enumerator.http_prober import probe_hosts
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.url = 'https://portal.example.com'
+        mock_resp.headers = {'server': 'nginx'}
+        mock_resp.text = '<html><head><title>Portal</title></head></html>'
+        mock_get.return_value = mock_resp
+
+        results = probe_hosts(['portal.example.com'], timeout=1.0, rate_limit=50.0)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['host'], 'portal.example.com')
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

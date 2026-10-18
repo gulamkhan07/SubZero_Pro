@@ -101,35 +101,57 @@ SubZero is a modular, decoupled cybersecurity reconnaissance platform featuring 
 
 ```text
 subzero/
+├── routes/                   # Modular Flask Blueprint routes
+│   ├── scan.py               # Main dashboard, scan initiation, polling & cancel
+│   ├── batch.py              # Multi-domain batch queue with SSE streaming
+│   ├── advanced.py           # Permutations, nested engine, Shodan & AXFR
+│   ├── audit.py              # Dangling CNAME auditor & HTTP live prober
+│   ├── history.py            # Historical timeline & attack surface diffs
+│   ├── download.py           # Clean project ZIP bundle generator
+│   ├── export.py             # CSV, JSON, TXT, and Executive HTML exports
+│   └── graph.py              # 3D force-directed attack surface topology
+├── services/                 # Centralized background services
+│   ├── scan_engine.py        # Core scan orchestration & enrichment loop
+│   ├── job_manager.py        # Centralized job store, TTL cache & GC daemon
+│   ├── filter_service.py     # Live/dead classification & search filtering
+│   └── batch_manager.py      # Concurrent multi-domain batch execution engine
 ├── enumerator/               # Core reconnaissance & intelligence modules
+│   ├── intelligence/         # Dynamic WAF & Cloud intelligence engine
+│   │   ├── updater.py        # Upstream JSON feed synchronizer (ETag/conditional)
+│   │   ├── database.py       # Radix/Interval tree indexing 6,100+ subnets
+│   │   ├── validation.py     # Catastrophic drop prevention & feed sanity
+│   │   ├── registry.py       # Catalog of 45 cloud providers & signatures
+│   │   └── data/             # Built-in Last-Known-Good baseline dataset
 │   ├── active_scanner.py     # Multi-threaded active DNS wordlist brute-forcer
+│   ├── axfr_auditor.py       # DNS Zone Transfer pre-flight auditor
 │   ├── cli.py                # Terminal command-line interface & cyber wizard
 │   ├── cname_auditor.py      # Dangling CNAME takeover vulnerability auditor
 │   ├── dns_resolver.py       # Multi-resolver engine (Cloudflare, Google, Quad9...)
 │   ├── history_store.py      # SQLite historical persistence & snapshot diffs
 │   ├── http_prober.py        # Concurrent HTTP/HTTPS service inspector
 │   ├── ip_intel.py           # Origin server vs. CDN/WAF classification
+│   ├── nested_engine.py      # Multi-tenant recursive subdomain engine
 │   ├── normalizer.py         # Subdomain regex hygiene & root domain filtering
+│   ├── origin_verifier.py    # True Origin IP WAF bypass validation
 │   ├── permutation_engine.py # Subdomain permutation & mutation generator
 │   ├── providers.py          # OSINT source query workers & binary execution
-│   └── request_utils.py      # Connection diagnostics, session pooling & retries
+│   ├── ptr_sweeper.py        # Reverse DNS PTR subnet sweeps
+│   ├── request_utils.py      # Connection diagnostics, session pooling & retries
+│   ├── shodan_exporter.py    # Shodan 1:1 schema & apex DNS infrastructure
+│   ├── shodan_free.py        # 100% Free Shodan InternetDB harvester
+│   ├── tls_scraper.py        # Direct TLS SAN certificate scraper (ports 443/8443)
+│   └── wildcard_detector.py  # Wildcard catch-all baseline detector
 ├── static/                   # Web platform front-end assets
 │   └── style.css             # Modern tactile monochrome UI stylesheet
 ├── templates/                # Server-rendered HTML templates
 │   ├── index.html            # Main web dashboard interface
 │   └── report_template.html  # Exportable executive HTML report template
-├── tests/                    # Automated test suite (comprehensive unit tests)
-│   ├── conftest.py
-│   ├── test_cli.py
-│   ├── test_dns_resolver.py
-│   ├── test_ip_intel.py
-│   ├── test_permutations.py
-│   └── test_requirements.py
+├── tests/                    # Automated test suite (145 comprehensive unit tests)
 ├── wordlists/                # Curated SecLists DNS brute-force dictionaries
 │   ├── subdomains_5000.txt   # Top 5,000 SecLists prefixes (recommended)
 │   ├── subdomains_10000.txt  # Extended 10,000 SecLists prefixes
 │   └── subdomains_20000.txt  # Deep 20,000 brute-force dictionary
-├── app.py                    # Flask Web application & REST API server
+├── app.py                    # Flask Web application & Blueprint coordinator
 ├── cli.py                    # CLI runner entrypoint
 ├── COMMANDS.md               # Complete CLI commands guide & cheat sheet
 ├── subzero.bat               # Windows CLI launcher (modular & auto-bootstrap)
@@ -283,11 +305,15 @@ subzero --check-network
 
 ## 🧪 Testing
 
-SubZero includes a comprehensive unit test suite:
+SubZero includes a comprehensive **145-test automated unit test suite** covering all engines, providers, resolvers, and blueprints:
 ```bash
-pytest tests/
+# Standard Python unittest (zero extra dependencies):
+python -m unittest discover -s tests -p "test_*.py"
+
+# Or with pytest:
+pytest tests/ -v
 ```
-All tests validate provider error handling, multi-resolver logic, and candidate generation rules.
+All 145 tests validate provider error handling, multi-resolver logic, dynamic intelligence drop protection, and candidate generation rules.
 
 ---
 

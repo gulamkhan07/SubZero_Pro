@@ -16,6 +16,35 @@ from pathlib import Path
 from functools import lru_cache
 from typing import List, Set, Tuple, Any, Optional, Dict
 
+# Default maximum queries-per-second for active DNS brute-force.
+# 150 QPS is conservative enough to avoid Google DoH 429s and ISP flagging,
+# even during multi-domain batch scans, while still being reasonably fast.
+DEFAULT_RATE_LIMIT = 150
+
+
+class _TokenBucketRateLimiter:
+    """
+    Thread-safe token-bucket rate limiter.
+    Allows up to `rate` operations per second with microsecond-precision
+    inter-request spacing.  Workers call acquire() before each DNS query;
+    if the bucket is empty they sleep just long enough to stay under the cap.
+    """
+
+    def __init__(self, rate: float):
+        self._rate = max(rate, 1.0)
+        self._interval = 1.0 / self._rate  # seconds between tokens
+        self._lock = threading.Lock()
+        self._last = time.monotonic()
+
+    def acquire(self) -> None:
+        """Block until a token is available."""
+        with self._lock:
+            now = time.monotonic()
+            wait = self._interval - (now - self._last)
+            if wait > 0:
+                time.sleep(wait)
+            self._last = time.monotonic()
+
 import dns.asyncresolver
 import dns.resolver
 import dns.exception
@@ -129,11 +158,20 @@ async def _async_resolve_host(host: str, resolver: dns.asyncresolver.Resolver, s
             latency = round((time.time() - t0) * 1000, 1)
             return host, "error", [], latency, str(exc)
 
-def _resolve_single_host(cand: str, session: Any) -> Tuple[str, str, List[str]]:
+def _resolve_single_host(
+    cand: str,
+    session: Any,
+    limiter: Optional[_TokenBucketRateLimiter] = None,
+) -> Tuple[str, str, List[str]]:
     """
     Resolves a candidate domain using Anycast DoH (port 443) with native OS socket fallback.
     Immune to ISP port 53 UDP blocking and packet drops.
+    Optionally rate-limited via a shared TokenBucket to prevent upstream 429s.
     """
+    # Honour the global rate limiter before issuing any network call
+    if limiter is not None:
+        limiter.acquire()
+
     # Tier 1: Anycast Google DoH (Fast HTTP connection pooling)
     if session:
         try:
@@ -170,11 +208,16 @@ def dns_brute_force(
     verbose: bool = True,
     allow_wildcard_filtering: bool = False,
     wildcard_ips: Optional[List[str]] = None,
+    rate_limit: Optional[int] = None,
     **kwargs
 ) -> tuple:
     """
     Performs ultra-fast, firewall-resilient active DNS brute-forcing on domain using wordlist.
     Uses scaled HTTP/2 Anycast DoH and native OS resolver fallbacks to prevent UDP port 53 blocking.
+
+    Args:
+        rate_limit: Maximum queries-per-second (QPS) cap.  Defaults to DEFAULT_RATE_LIMIT (150).
+                    Set to 0 or None to use the default.  Higher values = faster but riskier.
     """
     if 'concurrency' in kwargs:
         max_workers = kwargs.pop('concurrency')
@@ -221,7 +264,14 @@ def dns_brute_force(
     
     effective_workers = max(10, min(int(max_workers) if max_workers else 60, 80))
     progress_interval = 250 if total_candidates > 5000 else 100
-    log(f"[*] Wordlist loaded: {total_candidates:,} queries using {effective_workers} concurrent resolver threads.")
+
+    # Initialise rate limiter — cap QPS to prevent upstream 429s and ISP flagging
+    effective_rate = int(rate_limit) if rate_limit and int(rate_limit) > 0 else DEFAULT_RATE_LIMIT
+    # Clamp workers to the rate limit so threads don't pile up waiting on tokens
+    if effective_workers > effective_rate:
+        effective_workers = max(10, effective_rate)
+    limiter = _TokenBucketRateLimiter(effective_rate)
+    log(f"[*] Wordlist loaded: {total_candidates:,} queries | {effective_workers} threads | Rate cap: ~{effective_rate:,} QPS")
 
     t_start = time.time()
     discovered: Set[str] = set()
@@ -239,7 +289,7 @@ def dns_brute_force(
 
     try:
         with ThreadPoolExecutor(max_workers=effective_workers) as pool:
-            futures = {pool.submit(_resolve_single_host, cand, session): cand for cand in candidates}
+            futures = {pool.submit(_resolve_single_host, cand, session, limiter): cand for cand in candidates}
             for fut in as_completed(futures):
                 try:
                     cand, status, ips = fut.result()

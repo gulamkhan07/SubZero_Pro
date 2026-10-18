@@ -4,12 +4,15 @@ Provides exponential backoff with jitter, session pooling, and per-provider thro
 """
 __author__ = "SubZero Community"
 
+import logging
 import random
 import time
 import threading
 
 import requests
 import requests.adapters
+
+logger = logging.getLogger('subzero')
 
 # ---------------------------------------------------------------------------
 # Singleton requests.Session with connection pooling
@@ -25,14 +28,29 @@ USER_AGENTS = [
 ]
 
 
+class _TimeoutAdapter(requests.adapters.HTTPAdapter):
+    """HTTPAdapter subclass that enforces a default timeout on every request,
+    preventing any caller from accidentally hanging indefinitely."""
+    DEFAULT_TIMEOUT = 15  # seconds
+
+    def __init__(self, timeout=None, **kwargs):
+        self.timeout = timeout or self.DEFAULT_TIMEOUT
+        super().__init__(**kwargs)
+
+    def send(self, *args, **kwargs):
+        kwargs.setdefault('timeout', self.timeout)
+        return super().send(*args, **kwargs)
+
+
 def get_session() -> requests.Session:
-    """Thread-safe singleton session with connection pooling."""
+    """Thread-safe singleton session with connection pooling and default timeout."""
     global _session
     if _session is None:
         with _session_lock:
             if _session is None:
                 s = requests.Session()
-                adapter = requests.adapters.HTTPAdapter(
+                adapter = _TimeoutAdapter(
+                    timeout=15,
                     pool_connections=100,
                     pool_maxsize=100,
                     max_retries=0,  # We handle retries manually

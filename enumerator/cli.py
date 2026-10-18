@@ -169,6 +169,8 @@ def run_cli_scan(
     check_axfr: bool = False,
     silent: bool = False,
     verbose: bool = False,
+    rate_limit: int = 0,
+    probe_rate: int = 15,
 ) -> Dict[str, Any]:
     domain = domain.strip().lower().rstrip('.')
     if not valid_domain(domain):
@@ -247,14 +249,17 @@ def run_cli_scan(
         else:
             log_info(f"Starting active DNS wordlist brute-forcing ({wordlist_size} prefixes, {active_threads} threads)...", silent)
             try:
-                active_vals, active_err, active_cnt = dns_brute_force(
-                    domain=domain,
-                    wordlist=None,
-                    max_workers=active_threads,
-                    wordlist_size=wordlist_size,
-                    log_callback=(lambda m: log_info(f"[DNS-BRUTE] {m}", silent)) if verbose else None,
-                    verbose=verbose
-                )
+                dns_brute_kwargs = {
+                    'domain': domain,
+                    'wordlist': None,
+                    'max_workers': active_threads,
+                    'wordlist_size': wordlist_size,
+                    'log_callback': (lambda m: log_info(f"[DNS-BRUTE] {m}", silent)) if verbose else None,
+                    'verbose': verbose,
+                }
+                if rate_limit:
+                    dns_brute_kwargs['rate_limit'] = rate_limit
+                active_vals, active_err, active_cnt = dns_brute_force(**dns_brute_kwargs)
                 source_counts['active-dns'] = active_cnt
                 if active_err and 'wildcard' not in str(active_err).lower():
                     errors.append(f"active-dns: {active_err}")
@@ -410,9 +415,13 @@ def run_cli_scan(
     # HTTP Alive Prober (if requested)
     probe_results: Dict[str, Dict[str, Any]] = {}
     if probe_http and found_by:
-        log_info(f"Probing HTTP/HTTPS services across {len(found_by)} hosts...", silent)
+        probe_kwargs = {'max_workers': 25, 'timeout': 5.0}
+        rate_note = f" (rate cap: ~{probe_rate} req/s + jitter)" if probe_rate else ""
+        log_info(f"Probing HTTP/HTTPS services across {len(found_by)} hosts{rate_note}...", silent)
         try:
-            probes = probe_hosts(list(found_by.keys()), max_workers=25, timeout=5.0)
+            if probe_rate and probe_rate > 0:
+                probe_kwargs['rate_limit'] = float(probe_rate)
+            probes = probe_hosts(list(found_by.keys()), **probe_kwargs)
             for p in probes:
                 probe_results[p['host']] = p
         except Exception as exc:
@@ -668,6 +677,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Wordlist size ('100', '1000', '5000', '20000') or path to custom wordlist file (default: 5000)"
     )
     active_group.add_argument("-t", "--threads", dest="threads", type=int, default=500, help="Concurrency for active scanning (default: 500)")
+    active_group.add_argument(
+        "--rate", dest="rate", type=int, default=150,
+        help="Max queries-per-second (QPS) for active DNS brute-force to prevent upstream rate-limiting (default: 150)"
+    )
     active_group.add_argument("--permute", dest="permute", action="store_true", help="Mutate discovered subdomains with permutation engine")
     active_group.add_argument("--nested", dest="nested", action="store_true", help="Mine multi-tenant naming conventions & recursive sub-zones")
 
@@ -683,6 +696,10 @@ def build_parser() -> argparse.ArgumentParser:
     security_group.add_argument("--axfr", dest="axfr", action="store_true", help="Audit authoritative Name Servers for open DNS Zone Transfer (AXFR)")
     security_group.add_argument("--cname", dest="cname", action="store_true", help="Audit for dangling CNAME records (subdomain takeover)")
     security_group.add_argument("--probe", dest="probe", action="store_true", help="Probe HTTP/HTTPS alive status, page title, and server headers")
+    security_group.add_argument(
+        "--probe-rate", dest="probe_rate", type=int, default=15,
+        help="Max requests-per-second (QPS) for HTTP probing with micro-jitter (default: 15, 0 for unlimited)"
+    )
     security_group.add_argument("--ip-intel", dest="ip_intel", action="store_true", help="Classify IPs as Direct Origin server vs Cloudflare/CDN/WAF")
     security_group.add_argument("--tls-san", dest="tls_san", action="store_true", help="Direct TLS SAN Certificate Scraper across port 443 of resolved IPs")
     security_group.add_argument("--wildcard", dest="wildcard", action="store_true", help="Detect DNS wildcard catch-all (*.domain) and flag false positives")
@@ -1046,6 +1063,8 @@ def main(argv=None):
             check_axfr=args.axfr,
             silent=args.silent,
             verbose=args.verbose,
+            rate_limit=args.rate,
+            probe_rate=args.probe_rate,
         )
 
         # Output subdomains to stdout

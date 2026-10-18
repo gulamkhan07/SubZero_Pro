@@ -7,9 +7,12 @@ titles, and latency.
 __author__ = "SubZero Community"
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import random
 import re
 import socket
+import threading
 import time
+from typing import Any, Dict, List, Optional
 import requests
 import urllib3
 from enumerator.ip_intel import detect_waf_from_http, classify_ips, classify_ip
@@ -17,8 +20,18 @@ from enumerator.ip_intel import detect_waf_from_http, classify_ips, classify_ip
 # Suppress insecure HTTPS warning for internal/self-signed certs during probing
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# Rotating modern browser User-Agents to prevent bot signature detection
+BROWSER_USER_AGENTS: List[str] = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 14.5; rv:128.0) Gecko/20100101 Firefox/128.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
+]
+
 PROBE_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': BROWSER_USER_AGENTS[0],
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.9',
     'Accept-Encoding': 'gzip, deflate, br',
@@ -29,6 +42,66 @@ PROBE_HEADERS = {
     'Sec-Fetch-Site': 'none',
     'Sec-Fetch-User': '?1'
 }
+
+
+def _get_probe_headers() -> Dict[str, str]:
+    """Generates realistic HTTP request headers with randomized User-Agent rotation."""
+    headers = dict(PROBE_HEADERS)
+    headers['User-Agent'] = random.choice(BROWSER_USER_AGENTS)
+    return headers
+
+
+class _HttpRateLimiter:
+    """
+    Thread-safe token-bucket rate limiter with randomized micro-jitter and
+    adaptive WAF cooldown backoff.
+
+    Attributes:
+        rate: Maximum requests per second (QPS cap).
+        jitter: If True, applies +/-20% random variance to break robotic cadence.
+        cooldown_seconds: Sleep duration upon detecting HTTP 429 or WAF challenge block.
+    """
+
+    def __init__(self, rate: float = 15.0, jitter: bool = True, cooldown_seconds: float = 4.0):
+        self._rate = max(float(rate), 0.5)
+        self._base_interval = 1.0 / self._rate
+        self._jitter = bool(jitter)
+        self._cooldown_seconds = max(float(cooldown_seconds), 1.0)
+        self._lock = threading.Lock()
+        self._last_time = time.monotonic()
+        self._cooldown_until = 0.0
+        self._backoff_count = 0
+
+    def acquire(self) -> None:
+        """Blocks until a token is available, observing any active cooldown and applying jitter."""
+        with self._lock:
+            now = time.monotonic()
+            # If in adaptive cooldown, pause until cooldown expires
+            if now < self._cooldown_until:
+                sleep_cooldown = self._cooldown_until - now
+                time.sleep(sleep_cooldown)
+                now = time.monotonic()
+                self._last_time = now
+
+            interval = self._base_interval
+            if self._jitter:
+                # +/-20% randomized variance to blur robotic cadence
+                interval *= random.uniform(0.80, 1.20)
+
+            wait = interval - (now - self._last_time)
+            if wait > 0:
+                time.sleep(wait)
+            self._last_time = time.monotonic()
+
+    def report_throttle(self) -> None:
+        """Called when a worker encounters an HTTP 429 or WAF block.
+        Synchronizes an immediate cooldown across all worker threads.
+        """
+        with self._lock:
+            now = time.monotonic()
+            self._backoff_count += 1
+            multiplier = min(1.0 + (self._backoff_count * 0.5), 3.0)
+            self._cooldown_until = max(self._cooldown_until, now + (self._cooldown_seconds * multiplier))
 
 
 def _resolve_host_ip(host: str) -> str:
@@ -47,7 +120,13 @@ def _resolve_host_ip(host: str) -> str:
         return ""
 
 
-def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str = None, known_ip: str = "") -> dict:
+def _probe_single_host(
+    host: str,
+    timeout: float = 3.0,
+    specific_resolver: str = None,
+    known_ip: str = "",
+    rate_limiter: Optional[_HttpRateLimiter] = None
+) -> dict:
     host = host.strip().lower()
     if not host:
         return {}
@@ -62,11 +141,13 @@ def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str =
 
     for url in endpoints:
         r = None
+        if rate_limiter is not None:
+            rate_limiter.acquire()
         t_start = time.perf_counter()
         try:
             r = requests.get(
                 url,
-                headers=PROBE_HEADERS,
+                headers=_get_probe_headers(),
                 timeout=timeout,
                 verify=False,
                 allow_redirects=True,
@@ -140,6 +221,10 @@ def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str =
                     display_server = waf_provider
             elif waf_detected and waf_badge != 'origin' and waf_provider.lower() not in display_server.lower():
                 display_server = f"{display_server} ({waf_provider})"
+
+            # If WAF rate limit (429) or challenge (403) detected, notify rate limiter to back off
+            if rate_limiter is not None and (status == 429 or (status == 403 and waf_detected)):
+                rate_limiter.report_throttle()
 
             return {
                 'host': host,
@@ -230,16 +315,35 @@ def _probe_single_host(host: str, timeout: float = 3.0, specific_resolver: str =
     }
 
 
-def probe_hosts(hosts: list, max_workers: int = 15, timeout: float = 3.0, specific_resolver: str = None, host_ips: dict = None, **kwargs) -> list:
+def probe_hosts(
+    hosts: list,
+    max_workers: int = 15,
+    timeout: float = 3.0,
+    specific_resolver: str = None,
+    host_ips: dict = None,
+    rate_limit: Optional[float] = None,
+    jitter: bool = True,
+    **kwargs
+) -> list:
     unique_hosts = sorted(set(h.strip().lower() for h in hosts if h.strip()))
     if not unique_hosts:
         return []
 
+    rate_limiter = None
+    if rate_limit is not None and float(rate_limit) > 0:
+        rate_limiter = _HttpRateLimiter(rate=float(rate_limit), jitter=jitter)
+
     effective_workers = max(1, min(int(max_workers) if max_workers else 15, 20, len(unique_hosts)))
+    if rate_limiter is not None and effective_workers > int(rate_limiter._rate):
+        effective_workers = max(1, min(effective_workers, int(rate_limiter._rate)))
+
     results = []
     host_ips_map = host_ips or {}
     with ThreadPoolExecutor(max_workers=effective_workers) as pool:
-        futures = [pool.submit(_probe_single_host, h, timeout, specific_resolver, host_ips_map.get(h, "")) for h in unique_hosts]
+        futures = [
+            pool.submit(_probe_single_host, h, timeout, specific_resolver, host_ips_map.get(h, ""), rate_limiter)
+            for h in unique_hosts
+        ]
         for f in as_completed(futures):
             res = f.result()
             if res:

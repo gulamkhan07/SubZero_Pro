@@ -193,6 +193,13 @@
                 <option value="20000">Extreme 20,000</option>
                 <option value="1500">Fast 1,500</option>
               </select>
+              <select id="dns-rate-limit" class="wordlist-select" title="Max queries-per-second (QPS) rate cap — lower values are stealthier and safer for bulk scans">
+                <option value="50">50 QPS (Stealth)</option>
+                <option value="100">100 QPS (Safe)</option>
+                <option value="150" selected>150 QPS (Default)</option>
+                <option value="300">300 QPS (Fast)</option>
+                <option value="500">500 QPS (Aggressive)</option>
+              </select>
             </div>
 
             <!-- Multi-Resolver Live DNS Check Group -->
@@ -559,6 +566,13 @@
                 <option value="10000">Deep 10,000 (SecLists)</option>
                 <option value="20000">Extreme 20,000</option>
                 <option value="1500">Fast 1,500</option>
+              </select>
+              <select id="batch-dns-rate-limit" class="wordlist-select" title="Max queries-per-second (QPS) rate cap — lower values are stealthier and safer for bulk scans">
+                <option value="50">50 QPS (Stealth)</option>
+                <option value="100">100 QPS (Safe)</option>
+                <option value="150" selected>150 QPS (Default)</option>
+                <option value="300">300 QPS (Fast)</option>
+                <option value="500">500 QPS (Aggressive)</option>
               </select>
             </div>
 
@@ -985,6 +999,16 @@
                 <option value="controld">Control D (76.76.2.0)</option>
                 <option value="level3">Level3 (4.2.2.1)</option>
                 <option value="system">System Local OS</option>
+              </select>
+            </div>
+            <div class="active-group resolver-group" style="padding: 4px 10px;">
+              <span style="font-size: 11px; font-weight: 700; color: #38bdf8;" title="Safe rate limiting with randomized micro-jitter to prevent WAF bans">RATE CAP:</span>
+              <select id="prober-rate-limit" class="resolver-select" title="HTTP probe rate limit with jitter to avoid WAF 429s and IP bans">
+                <option value="10">10 req/s (Stealth / Anti-Ban)</option>
+                <option value="15" selected>15 req/s (Safe Recommended)</option>
+                <option value="30">30 req/s (Moderate)</option>
+                <option value="50">50 req/s (Fast)</option>
+                <option value="0">Unlimited (Aggressive)</option>
               </select>
             </div>
             <button type="button" class="term-btn" onclick="document.getElementById('prober-hosts').value = ''; updateProberCount();">Clear</button>
@@ -1670,6 +1694,7 @@
             validate_dns: validateDns,
             active_dns: activeDns,
             active_wordlist: document.getElementById('active-wordlist').value,
+            dns_rate_limit: parseInt(document.getElementById('dns-rate-limit') ? document.getElementById('dns-rate-limit').value : '150', 10),
             selected_resolver: document.getElementById('dns-resolver-target') ? document.getElementById('dns-resolver-target').value : 'all',
             verbose_dns: document.getElementById('verbose-dns') ? document.getElementById('verbose-dns').checked : true
           })
@@ -2797,6 +2822,7 @@
             validate_dns: validateDns,
             active_dns: activeDns,
             active_wordlist: activeWordlist,
+            dns_rate_limit: parseInt(document.getElementById('batch-dns-rate-limit') ? document.getElementById('batch-dns-rate-limit').value : '150', 10),
             dns_resolver: selectedResolver,
             selected_resolver: selectedResolver,
             verbose_dns: verboseDns
@@ -3553,6 +3579,7 @@
             hosts: hosts,
             timeout: 4.0,
             concurrency: 25,
+            rate_limit: document.getElementById('prober-rate-limit') ? parseInt(document.getElementById('prober-rate-limit').value, 10) : 15,
             selected_resolver: document.getElementById('prober-resolver-target') ? document.getElementById('prober-resolver-target').value : 'all'
           })
         });
