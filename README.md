@@ -84,8 +84,14 @@ SubZero is a modular, decoupled cybersecurity reconnaissance platform featuring 
 - Calculates additions (newly emerged assets), removals (decommissioned subdomains), and common assets between any two dates.
 
 ### 6. 🛡️ DNS Asset Integrity & Dangling CNAME Auditor
-- Defensive auditing against cloud service signatures: **AWS S3, GitHub Pages, Heroku, Microsoft Azure, Shopify, Zendesk, Fastly, and Surge.sh**.
-- Detects orphaned pointers and dangling CNAME records vulnerable to subdomain takeover.
+- Offensive auditing against **74+ cloud & SaaS service signatures**: AWS S3, CloudFront, Elastic Beanstalk, GitHub Pages, Heroku, Microsoft Azure (Traffic Manager, App Service, Front Door), Shopify, Zendesk, Fastly, Pantheon, Surge.sh, Bitbucket, Ghost, Netlify, Vercel, Fly.io, Readme.io, WordPress.com, Webflow, and 50+ more.
+- **Recursive Multi-Hop CNAME Chain Resolution**: Recursively traces nested CNAME chains (e.g. sub.target.com -> custom.cdn.net -> target.s3.amazonaws.com) with circular reference loop protection.
+- **Orphaned NXDOMAIN Anomaly Detection**: Identifies dangling DNS records pointing to unmapped non-SaaS external targets.
+- **HTTP Evidence Verification**: Confirms takeover vulnerability against active cloud error fingerprints (NoSuchBucket, 404 Not Found, Project Not Found).
+
+### 7. ⚡ Authoritative DNS Zone Transfer (AXFR) Pre-Flight Auditor
+- Audits authoritative nameservers for insecure open zone transfers prior to enumeration.
+- Leaks complete zone record databases instantly if misconfigured.
 
 ### 8. 🌐 Live HTTP Web Service Status Prober
 - Decoupled on-demand HTTP/HTTPS status inspector (200, 301, 403, 500).
@@ -146,7 +152,7 @@ subzero/
 ├── templates/                # Server-rendered HTML templates
 │   ├── index.html            # Main web dashboard interface
 │   └── report_template.html  # Exportable executive HTML report template
-├── tests/                    # Automated test suite (145 comprehensive unit tests)
+├── tests/                    # Automated test suite (159 comprehensive unit tests)
 ├── wordlists/                # Curated SecLists DNS brute-force dictionaries
 │   ├── subdomains_5000.txt   # Top 5,000 SecLists prefixes (recommended)
 │   ├── subdomains_10000.txt  # Extended 10,000 SecLists prefixes
@@ -206,8 +212,8 @@ Access the dashboard at `http://localhost:5000`.
 ### Option 4: Manual Python Installation
 ```bash
 # 1. Clone the repository
-git clone https://github.com/gulamkhan07/subdomain_finder_pro.git
-cd subdomain_finder_pro
+git clone https://github.com/gulamkhan07/SubZero_Pro.git
+cd SubZero_Pro
 
 # 2. Install dependencies
 pip install -r requirements.txt
@@ -305,7 +311,7 @@ subzero --check-network
 
 ## 🧪 Testing
 
-SubZero includes a comprehensive **145-test automated unit test suite** covering all engines, providers, resolvers, and blueprints:
+SubZero includes a comprehensive **159-test automated unit test suite** covering all engines, providers, resolvers, and blueprints:
 ```bash
 # Standard Python unittest (zero extra dependencies):
 python -m unittest discover -s tests -p "test_*.py"
@@ -313,7 +319,7 @@ python -m unittest discover -s tests -p "test_*.py"
 # Or with pytest:
 pytest tests/ -v
 ```
-All 145 tests validate provider error handling, multi-resolver logic, dynamic intelligence drop protection, and candidate generation rules.
+All 159 tests validate provider error handling, multi-resolver logic, dynamic intelligence drop protection, and candidate generation rules.
 
 ---
 

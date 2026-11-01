@@ -55,7 +55,7 @@ python app.py
 
 ## 2. Testing & Verification
 
-Run the full **145-test unit test suite**:
+Run the full **159-test unit test suite**:
 ```powershell
 # Standard Python unittest (zero extra dependencies):
 python -m unittest discover -s tests -p "test_*.py"
@@ -66,7 +66,7 @@ uv run --with requests --with dnspython --with flask python -m unittest discover
 # Or with pytest:
 pytest tests/ -v
 ```
-All **145 test cases across 14 test modules** must pass with 100% green status, covering:
+All **159 test cases across 15 test modules** must pass with 100% green status, covering:
 - **`test_cli.py`**: Terminal CLI Engine, Wizard, silent piping, and Tool Exclusions.
 - **`test_dynamic_intelligence.py`**: Dynamic WAF/Cloud IP intelligence updater, ETag handling, and drop prevention.
 - **`test_ip_intel.py`**: IP Intelligence, ASN classification, and Origin Server vs CDN/WAF.

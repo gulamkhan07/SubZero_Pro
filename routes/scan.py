@@ -46,7 +46,7 @@ def api_info():
         'author': 'SubZero Community',
         'role': 'Open Source Community',
         'license': 'MIT',
-        'repository': 'https://github.com/gulamkhan07/subdomain_finder_pro',
+        'repository': 'https://github.com/gulamkhan07/SubZero_Pro',
         'status': 'online',
         'description': 'Enterprise-Grade OSINT Reconnaissance, Multi-Resolver DNS Integrity, Permutations Engine, Wayback URL Miner & Cloud Asset Auditor.'
     })
